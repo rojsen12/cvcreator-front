@@ -24,6 +24,7 @@ export class NavbarComponent implements OnInit {
   ngOnInit(): void {
     const user = this.apiService.getCurrentUser();
     this.username = user?.username || 'User';
+    const isAdmin = user?.role === 'ADMIN';
 
     this.items = [
       {
@@ -41,10 +42,46 @@ export class NavbarComponent implements OnInit {
         icon: 'pi pi-plus',
         routerLink: ['/create-cv']
       },
+      ...(!isAdmin ? [
+        {
+          label: 'Zgłoszenia',
+          icon: 'pi pi-envelope',
+          items: [
+            {
+              label: 'Nowe zgłoszenie',
+              icon: 'pi pi-plus',
+              routerLink: ['/create-ticket']
+            },
+            {
+              label: 'Moje zgłoszenia',
+              icon: 'pi pi-list',
+              routerLink: ['/my-tickets']
+            }
+          ]
+        }
+      ] : []),
+      ...(isAdmin ? [
+        {
+          label: 'Panel Admina',
+          icon: 'pi pi-shield',
+          routerLink: ['/admin']
+        }
+      ] : []),
       {
         label: this.username,
         icon: 'pi pi-user',
         items: [
+          ...(isAdmin ? [
+            {
+              label: 'Administrator',
+              icon: 'pi pi-verified',
+              disabled: true,
+              styleClass: 'admin-badge'
+            },
+            {
+              separator: true
+            }
+          ] : []),
           {
             label: 'Wyloguj',
             icon: 'pi pi-sign-out',
@@ -61,7 +98,6 @@ export class NavbarComponent implements OnInit {
         this.router.navigate(['/login']);
       },
       error: (err) => {
-        console.error('Logout error:', err);
         this.router.navigate(['/login']);
       }
     });

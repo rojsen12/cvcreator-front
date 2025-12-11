@@ -1,0 +1,103 @@
+<div class="navbar-container">
+  <app-navbar></app-navbar>
+</div>
+
+<div class="ticket-wrapper">
+  <div class="ticket-container">
+    <div class="ticket-header">
+      <div class="header-icon">
+        <i class="pi pi-envelope"></i>
+      </div>
+      <h1>Nowe zgłoszenie</h1>
+      <p>Opisz swój problem, a nasz zespół pomoże Ci jak najszybciej</p>
+    </div>
+
+    <div class="success-message" *ngIf="submitSuccess">
+      <i class="pi pi-check-circle"></i>
+      <h2>Zgłoszenie wysłane!</h2>
+      <p>Dziękujemy za kontakt. Odpowiemy najszybciej jak to możliwe.</p>
+      <p class="redirect-info">Za chwilę zostaniesz przekierowany...</p>
+    </div>
+
+    <form [formGroup]="ticketForm" (ngSubmit)="onSubmit()" *ngIf="!submitSuccess">
+
+      <div class="error-banner" *ngIf="submitError">
+        <i class="pi pi-exclamation-circle"></i>
+        {{ submitError }}
+      </div>
+
+      <div class="form-group">
+        <label for="subject">Temat <span class="required">*</span></label>
+        <input
+          type="text"
+          id="subject"
+          formControlName="subject"
+          class="form-input"
+          placeholder="Krótki opis problemu..."
+          [class.invalid]="ticketForm.get('subject')?.invalid && ticketForm.get('subject')?.touched">
+        <small class="error-msg" *ngIf="ticketForm.get('subject')?.invalid && ticketForm.get('subject')?.touched">
+          <span *ngIf="ticketForm.get('subject')?.errors?.['required']">Temat jest wymagany</span>
+          <span *ngIf="ticketForm.get('subject')?.errors?.['minlength']">Minimum 5 znaków</span>
+        </small>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="category">Kategoria <span class="required">*</span></label>
+          <select id="category" formControlName="category" class="form-select">
+            <option *ngFor="let cat of categories" [value]="cat.value">
+              {{ cat.label }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Priorytet <span class="required">*</span></label>
+          <div class="priority-options">
+            <label
+              *ngFor="let p of priorities"
+              class="priority-option"
+              [class.selected]="ticketForm.get('priority')?.value === p.value"
+              [ngClass]="'priority-' + p.value">
+              <input type="radio" formControlName="priority" [value]="p.value">
+              <span class="priority-label">{{ p.label }}</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="message">Opis problemu <span class="required">*</span></label>
+        <textarea
+          id="message"
+          formControlName="message"
+          class="form-textarea"
+          rows="6"
+          placeholder="Opisz szczegółowo swój problem..."
+          [class.invalid]="ticketForm.get('message')?.invalid && ticketForm.get('message')?.touched">
+        </textarea>
+        <div class="textarea-footer">
+          <small class="error-msg" *ngIf="ticketForm.get('message')?.invalid && ticketForm.get('message')?.touched">
+            <span *ngIf="ticketForm.get('message')?.errors?.['required']">Opis jest wymagany</span>
+            <span *ngIf="ticketForm.get('message')?.errors?.['minlength']">Minimum 20 znaków</span>
+          </small>
+          <small class="char-count">{{ ticketForm.get('message')?.value?.length || 0 }} znaków</small>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="secondary-btn" (click)="cancel()">
+          <i class="pi pi-times"></i> Anuluj
+        </button>
+        <button type="submit" class="primary-btn" [disabled]="isSubmitting">
+          <i class="pi" [ngClass]="isSubmitting ? 'pi-spinner pi-spin' : 'pi-send'"></i>
+          {{ isSubmitting ? 'Wysyłanie...' : 'Wyślij zgłoszenie' }}
+        </button>
+      </div>
+    </form>
+
+    <div class="quick-links" *ngIf="!submitSuccess">
+      <a routerLink="/my-tickets"><i class="pi pi-list"></i> Moje zgłoszenia</a>
+    </div>
+  </div>
+</div>

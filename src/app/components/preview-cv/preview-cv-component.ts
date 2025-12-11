@@ -40,7 +40,6 @@ export class PreviewCvComponent implements OnInit {
         this.loading = false;
       },
       error: (err) => {
-        console.error('Error loading CV:', err);
         this.error = 'Nie udało się załadować CV';
         this.loading = false;
       }

@@ -1,0 +1,441 @@
+<div class="navbar-container">
+  <app-navbar></app-navbar>
+</div>
+
+<div class="notification-toast"
+     *ngIf="notification"
+     [ngClass]="notification.type"
+     (click)="hideNotification()">
+  <i class="pi" [ngClass]="{
+    'pi-check-circle': notification.type === 'success',
+    'pi-times-circle': notification.type === 'error',
+    'pi-info-circle': notification.type === 'info',
+    'pi-exclamation-triangle': notification.type === 'warning'
+  }"></i>
+  <span>{{ notification.message }}</span>
+  <button class="notification-close">
+    <i class="pi pi-times"></i>
+  </button>
+</div>
+
+<div class="admin-wrapper" [class.sidebar-collapsed]="sidebarCollapsed">
+  <aside class="admin-sidebar">
+    <div class="sidebar-header">
+      <div class="logo" *ngIf="!sidebarCollapsed">
+        <i class="pi pi-shield"></i>
+        <span>Admin Panel</span>
+      </div>
+      <button class="toggle-btn" (click)="toggleSidebar()">
+        <i class="pi" [ngClass]="sidebarCollapsed ? 'pi-angle-right' : 'pi-angle-left'"></i>
+      </button>
+    </div>
+
+    <nav class="sidebar-nav">
+      <button
+        *ngFor="let item of menuItems"
+        class="nav-item"
+        [class.active]="activeMenu === item.id"
+        (click)="setActiveMenu(item.id)"
+        [title]="sidebarCollapsed ? item.label : ''">
+        <i class="pi" [ngClass]="item.icon"></i>
+        <span *ngIf="!sidebarCollapsed">{{ item.label }}</span>
+        <span class="badge" *ngIf="hasBadge(item) && !sidebarCollapsed">
+          {{ item.badge }}
+        </span>
+      </button>
+    </nav>
+
+    <div class="sidebar-footer" *ngIf="!sidebarCollapsed">
+      <div class="admin-info">
+        <div class="admin-avatar">
+          <i class="pi pi-user"></i>
+        </div>
+        <div class="admin-details">
+          <span class="admin-name">Administrator</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="admin-main">
+
+    <section class="dashboard-section" *ngIf="activeMenu === 'dashboard'">
+      <div class="section-header">
+        <h1>Dashboard</h1>
+        <p class="subtitle">Przegląd systemu zgłoszeń</p>
+      </div>
+
+      <div class="stats-grid" *ngIf="stats">
+        <div class="stat-card primary">
+          <div class="stat-icon">
+            <i class="pi pi-inbox"></i>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">{{ stats.total }}</span>
+            <span class="stat-label">Wszystkie zgłoszenia</span>
+          </div>
+        </div>
+
+        <div class="stat-card warning">
+          <div class="stat-icon">
+            <i class="pi pi-exclamation-circle"></i>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">{{ stats.open }}</span>
+            <span class="stat-label">Otwarte</span>
+          </div>
+        </div>
+
+        <div class="stat-card info">
+          <div class="stat-icon">
+            <i class="pi pi-sync"></i>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">{{ stats.inProgress }}</span>
+            <span class="stat-label">W trakcie</span>
+          </div>
+        </div>
+
+        <div class="stat-card success">
+          <div class="stat-icon">
+            <i class="pi pi-check-circle"></i>
+          </div>
+          <div class="stat-content">
+            <span class="stat-value">{{ stats.resolved }}</span>
+            <span class="stat-label">Rozwiązane</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="quick-stats" *ngIf="stats">
+        <div class="quick-stat-card">
+          <div class="quick-stat-header">
+            <i class="pi pi-calendar-plus"></i>
+            <span>Nowe dzisiaj</span>
+          </div>
+          <div class="quick-stat-value">{{ stats.todayNew }}</div>
+        </div>
+
+        <div class="quick-stat-card">
+          <div class="quick-stat-header">
+            <i class="pi pi-hourglass"></i>
+            <span>Oczekujące</span>
+          </div>
+          <div class="quick-stat-value">{{ stats.waiting }}</div>
+        </div>
+
+        <div class="quick-stat-card">
+          <div class="quick-stat-header">
+            <i class="pi pi-times-circle"></i>
+            <span>Zamknięte</span>
+          </div>
+          <div class="quick-stat-value">{{ stats.closed }}</div>
+        </div>
+      </div>
+
+      <div class="recent-tickets">
+        <div class="card-header">
+          <h2><i class="pi pi-clock"></i> Ostatnie zgłoszenia</h2>
+          <button class="link-btn" (click)="setActiveMenu('tickets')">
+            Zobacz wszystkie <i class="pi pi-arrow-right"></i>
+          </button>
+        </div>
+
+        <div class="tickets-mini-list">
+          <div
+            *ngFor="let ticket of filteredTickets.slice(0, 5); trackBy: trackByTicketId"
+            class="ticket-mini-item"
+            (click)="selectTicket(ticket); setActiveMenu('tickets')">
+            <div class="ticket-mini-status">
+              <span class="status-dot" [ngClass]="getStatusClass(ticket.status)"></span>
+            </div>
+            <div class="ticket-mini-content">
+              <span class="ticket-mini-subject">{{ ticket.subject }}</span>
+              <span class="ticket-mini-user">{{ ticket.userName }}</span>
+            </div>
+            <div class="ticket-mini-meta">
+              <span class="priority-badge" [ngClass]="getPriorityClass(ticket.priority)">
+                {{ getPriorityLabel(ticket.priority) }}
+              </span>
+              <span class="ticket-mini-time">{{ getTimeAgo(ticket.createdAt) }}</span>
+            </div>
+          </div>
+
+          <div *ngIf="filteredTickets.length === 0" class="empty-mini">
+            <i class="pi pi-inbox"></i>
+            <span>Brak zgłoszeń</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tickets-section" *ngIf="activeMenu === 'tickets'">
+      <div class="section-header">
+        <div class="header-left">
+          <h1>Zgłoszenia</h1>
+          <p class="subtitle">Zarządzaj zgłoszeniami użytkowników</p>
+        </div>
+        <div class="header-actions">
+          <button class="refresh-btn" (click)="loadTickets()" [disabled]="isLoading">
+            <i class="pi pi-refresh" [class.pi-spin]="isLoading"></i>
+            Odśwież
+          </button>
+        </div>
+      </div>
+
+      <div class="filters-bar">
+        <div class="search-box">
+          <i class="pi pi-search"></i>
+          <input
+            type="text"
+            [(ngModel)]="filter.search"
+            (input)="onFilterChange()"
+            placeholder="Szukaj po temacie, użytkowniku, ID...">
+        </div>
+
+        <div class="filter-group">
+          <select [(ngModel)]="filter.status" (change)="onFilterChange()" class="filter-select">
+            <option *ngFor="let opt of statusOptions" [value]="opt.value">{{ opt.label }}</option>
+          </select>
+
+          <select [(ngModel)]="filter.priority" (change)="onFilterChange()" class="filter-select">
+            <option *ngFor="let opt of priorityOptions" [value]="opt.value">{{ opt.label }}</option>
+          </select>
+
+          <select [(ngModel)]="filter.category" (change)="onFilterChange()" class="filter-select">
+            <option *ngFor="let opt of categoryOptions" [value]="opt.value">{{ opt.label }}</option>
+          </select>
+
+          <button
+            class="clear-filters-btn"
+            (click)="clearFilters()"
+            *ngIf="hasActiveFilters()">
+            <i class="pi pi-times"></i> Wyczyść
+          </button>
+        </div>
+      </div>
+
+      <div class="results-info">
+        <span>Znaleziono <strong>{{ filteredTickets.length }}</strong> zgłoszeń</span>
+      </div>
+
+      <div class="tickets-layout" [class.has-details]="selectedTicket">
+        <div class="tickets-list">
+          <div class="loading-state" *ngIf="isLoading">
+            <i class="pi pi-spinner pi-spin"></i>
+            <span>Ładowanie zgłoszeń...</span>
+          </div>
+
+          <div class="tickets-table" *ngIf="!isLoading">
+            <div
+              *ngFor="let ticket of filteredTickets; trackBy: trackByTicketId"
+              class="ticket-row"
+              [class.selected]="selectedTicket?.id === ticket.id">
+
+              <div class="ticket-clickable" (click)="selectTicket(ticket)">
+                <div class="ticket-status">
+                  <span class="status-indicator" [ngClass]="getStatusClass(ticket.status)"></span>
+                </div>
+
+                <div class="ticket-main">
+                  <div class="ticket-subject">{{ ticket.subject }}</div>
+                  <div class="ticket-meta">
+                    <span class="ticket-id-display">#{{ getTicketShortId(ticket.id) }}</span>
+                    <span class="ticket-user">
+                      <i class="pi pi-user"></i> {{ ticket.userName }}
+                    </span>
+                    <span class="ticket-category">
+                      <i class="pi" [ngClass]="getCategoryIcon(ticket.category)"></i>
+                      {{ getCategoryLabel(ticket.category) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+
+              <div class="ticket-time" (click)="selectTicket(ticket)">
+                <span class="time-ago">{{ getTimeAgo(ticket.createdAt) }}</span>
+                <span class="responses-count" *ngIf="ticket.responses?.length">
+                  <i class="pi pi-comments"></i> {{ ticket.responses.length }}
+                </span>
+              </div>
+            </div>
+
+            <div *ngIf="filteredTickets.length === 0 && !isLoading" class="empty-state">
+              <i class="pi pi-inbox"></i>
+              <h3>Brak zgłoszeń</h3>
+              <p>Nie znaleziono zgłoszeń pasujących do filtrów</p>
+              <button class="secondary-btn" (click)="clearFilters()">Wyczyść filtry</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="ticket-details" *ngIf="selectedTicket">
+          <div class="details-header">
+            <div class="details-title">
+              <h2>{{ selectedTicket.subject }}</h2>
+              <span class="ticket-id">#{{ getTicketShortId(selectedTicket.id) }}</span>
+            </div>
+            <button class="close-details-btn" (click)="closeTicketDetails()" title="Zamknij">
+              <i class="pi pi-times"></i>
+            </button>
+          </div>
+
+          <div class="details-loading" *ngIf="isLoadingTicket">
+            <i class="pi pi-spinner pi-spin"></i>
+            <span>Ładowanie szczegółów...</span>
+          </div>
+
+          <div class="details-content" *ngIf="!isLoadingTicket">
+            <div class="details-info">
+              <div class="info-row">
+                <span class="info-label">Status</span>
+                <div class="info-value">
+                  <select
+                    class="status-select"
+                    [ngClass]="getStatusClass(selectedTicket.status)"
+                    [(ngModel)]="selectedTicket.status"
+                    (change)="onStatusChange(selectedTicket.id, selectedTicket.status)"
+                    [disabled]="isUpdatingStatus">
+                    <option *ngFor="let opt of statusSelectOptions" [value]="opt.value">
+                      {{ opt.label }}
+                    </option>
+                  </select>
+                  <span class="updating-indicator" *ngIf="isUpdatingStatus">
+                    <i class="pi pi-spinner pi-spin"></i>
+                  </span>
+                </div>
+              </div>
+
+              <div class="info-row">
+                <span class="info-label">Priorytet</span>
+                <div class="info-value">
+                  <select
+                    class="priority-select"
+                    [ngClass]="getPriorityClass(selectedTicket.priority)"
+                    [(ngModel)]="selectedTicket.priority"
+                    (change)="onPriorityChange(selectedTicket.id, selectedTicket.priority)"
+                    [disabled]="isUpdatingPriority">
+                    <option *ngFor="let opt of prioritySelectOptions" [value]="opt.value">
+                      {{ opt.label }}
+                    </option>
+                  </select>
+                  <span class="updating-indicator" *ngIf="isUpdatingPriority">
+                    <i class="pi pi-spinner pi-spin"></i>
+                  </span>
+                </div>
+              </div>
+
+              <div class="info-row">
+                <span class="info-label">Kategoria</span>
+                <span class="category-tag">
+                  <i class="pi" [ngClass]="getCategoryIcon(selectedTicket.category)"></i>
+                  {{ getCategoryLabel(selectedTicket.category) }}
+                </span>
+              </div>
+
+              <div class="info-row">
+                <span class="info-label">Użytkownik</span>
+                <div class="user-info">
+                  <span class="user-name">{{ selectedTicket.userName }}</span>
+                  <span class="user-email">{{ selectedTicket.userEmail }}</span>
+                </div>
+              </div>
+
+              <div class="info-row">
+                <span class="info-label">Data utworzenia</span>
+                <span class="date-value">{{ formatDate(selectedTicket.createdAt) }}</span>
+              </div>
+
+              <div class="info-row">
+                <span class="info-label">Ostatnia aktualizacja</span>
+                <span class="date-value">{{ formatDate(selectedTicket.updatedAt) }}</span>
+              </div>
+            </div>
+
+            <div class="original-message">
+              <h3><i class="pi pi-envelope"></i> Treść zgłoszenia</h3>
+              <div class="message-content">
+                {{ selectedTicket.message }}
+              </div>
+            </div>
+
+            <div class="responses-section">
+              <h3><i class="pi pi-comments"></i> Odpowiedzi ({{ selectedTicket.responses?.length || 0 }})</h3>
+
+              <div class="responses-list">
+                <div
+                  *ngFor="let response of selectedTicket.responses"
+                  class="response-item"
+                  [class.admin-response]="response.authorRole === 'ADMIN'">
+                  <div class="response-header">
+                    <div class="response-author">
+                      <span class="author-avatar" [class.admin]="response.authorRole === 'ADMIN'">
+                        <i class="pi" [ngClass]="response.authorRole === 'ADMIN' ? 'pi-shield' : 'pi-user'"></i>
+                      </span>
+                      <div class="author-info">
+                        <span class="author-name">{{ response.authorName }}</span>
+                        <span class="author-role">{{ response.authorRole === 'ADMIN' ? 'Administrator' : 'Użytkownik' }}</span>
+                      </div>
+                    </div>
+                    <span class="response-time">{{ formatDate(response.createdAt) }}</span>
+                  </div>
+                  <div class="response-content">
+                    {{ response.message }}
+                  </div>
+                </div>
+
+                <div *ngIf="!selectedTicket.responses?.length" class="no-responses">
+                  <i class="pi pi-comments"></i>
+                  <span>Brak odpowiedzi</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="reply-form" *ngIf="selectedTicket.status !== 'closed'">
+              <h3><i class="pi pi-reply"></i> Odpowiedz</h3>
+              <textarea
+                [(ngModel)]="responseMessage"
+                placeholder="Napisz odpowiedź na zgłoszenie..."
+                rows="4"
+                class="reply-textarea"
+                [disabled]="isSendingResponse">
+              </textarea>
+              <div class="reply-actions">
+                <button
+                  class="danger-btn"
+                  (click)="deleteTicket(selectedTicket.id)"
+                  [disabled]="isSendingResponse">
+                  <i class="pi pi-trash"></i> Usuń zgłoszenie
+                </button>
+                <button
+                  class="primary-btn"
+                  (click)="sendResponse()"
+                  [disabled]="!responseMessage.trim() || isSendingResponse">
+                  <i class="pi" [ngClass]="isSendingResponse ? 'pi-spinner pi-spin' : 'pi-send'"></i>
+                  {{ isSendingResponse ? 'Wysyłanie...' : 'Wyślij odpowiedź' }}
+                </button>
+              </div>
+            </div>
+
+            <div class="closed-info" *ngIf="selectedTicket.status === 'closed'">
+              <i class="pi pi-lock"></i>
+              <div class="closed-text">
+                <span>To zgłoszenie zostało zamknięte</span>
+                <button class="link-btn" (click)="updateStatus(selectedTicket.id, 'open')">
+                  <i class="pi pi-lock-open"></i> Otwórz ponownie
+                </button>
+              </div>
+              <button
+                class="danger-btn-small"
+                (click)="deleteTicket(selectedTicket.id)">
+                <i class="pi pi-trash"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>

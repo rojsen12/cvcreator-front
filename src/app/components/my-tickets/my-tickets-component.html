@@ -1,0 +1,148 @@
+<div class="navbar-container">
+  <app-navbar></app-navbar>
+</div>
+
+<div class="tickets-wrapper">
+  <div class="tickets-header">
+    <div class="header-content">
+      <h1>Moje zgłoszenia</h1>
+      <p>Przeglądaj swoje zgłoszenia i odpowiedzi</p>
+    </div>
+    <a routerLink="/create-ticket" class="new-ticket-btn">
+      <i class="pi pi-plus"></i> Nowe zgłoszenie
+    </a>
+  </div>
+
+  <div class="tickets-content" [class.has-details]="selectedTicket">
+    <div class="tickets-list">
+      <div class="loading-state" *ngIf="isLoading">
+        <i class="pi pi-spinner pi-spin"></i>
+        <span>Ładowanie...</span>
+      </div>
+
+      <div *ngIf="!isLoading && tickets.length === 0" class="empty-state">
+        <i class="pi pi-inbox"></i>
+        <h3>Brak zgłoszeń</h3>
+        <p>Nie masz jeszcze żadnych zgłoszeń</p>
+        <a routerLink="/create-ticket" class="primary-btn">
+          <i class="pi pi-plus"></i> Utwórz zgłoszenie
+        </a>
+      </div>
+
+      <div *ngIf="!isLoading && tickets.length > 0" class="tickets-table">
+        <div
+          *ngFor="let ticket of tickets"
+          class="ticket-row"
+          [class.selected]="selectedTicket?.id === ticket.id"
+          (click)="selectTicket(ticket)">
+
+          <div class="ticket-status-dot">
+            <span class="status-dot" [ngClass]="getStatusClass(ticket.status)"></span>
+          </div>
+
+          <div class="ticket-main">
+            <div class="ticket-subject">{{ ticket.subject }}</div>
+            <div class="ticket-meta">{{ formatDate(ticket.createdAt) }}</div>
+          </div>
+
+          <div class="ticket-badges">
+            <span class="priority-badge" [ngClass]="getPriorityClass(ticket.priority)">
+              {{ getPriorityLabel(ticket.priority) }}
+            </span>
+            <span class="status-badge" [ngClass]="getStatusClass(ticket.status)">
+              {{ getStatusLabel(ticket.status) }}
+            </span>
+          </div>
+
+          <div class="ticket-responses-count" *ngIf="ticket.responses?.length">
+            <i class="pi pi-comments"></i> {{ ticket.responses.length }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ticket-details" *ngIf="selectedTicket">
+      <div class="details-header">
+        <h2>{{ selectedTicket.subject }}</h2>
+        <button class="close-btn" (click)="closeDetails()">
+          <i class="pi pi-times"></i>
+        </button>
+      </div>
+
+      <div class="details-info">
+        <div class="info-item">
+          <span class="info-label">Status:</span>
+          <span class="status-badge" [ngClass]="getStatusClass(selectedTicket.status)">
+            {{ getStatusLabel(selectedTicket.status) }}
+          </span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Priorytet:</span>
+          <span class="priority-badge" [ngClass]="getPriorityClass(selectedTicket.priority)">
+            {{ getPriorityLabel(selectedTicket.priority) }}
+          </span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Data:</span>
+          <span>{{ formatDate(selectedTicket.createdAt) }}</span>
+        </div>
+      </div>
+
+      <div class="original-message">
+        <h3>Treść zgłoszenia</h3>
+        <p>{{ selectedTicket.message }}</p>
+      </div>
+
+      <div class="responses-section">
+        <h3>Odpowiedzi ({{ selectedTicket.responses?.length || 0 }})</h3>
+
+        <div class="responses-list">
+          <div
+            *ngFor="let response of selectedTicket.responses"
+            class="response-item"
+            [class.admin-response]="response.authorRole === 'admin'">
+            <div class="response-header">
+              <div class="response-author">
+                <span class="author-avatar" [class.admin]="response.authorRole === 'admin'">
+                  <i class="pi" [ngClass]="response.authorRole === 'admin' ? 'pi-shield' : 'pi-user'"></i>
+                </span>
+                <span class="author-name">
+                  {{ response.authorName }}
+                  <span class="author-role">({{ response.authorRole === 'admin' ? 'Administrator' : 'Ty' }})</span>
+                </span>
+              </div>
+              <span class="response-time">{{ formatDate(response.createdAt) }}</span>
+            </div>
+            <p class="response-content">{{ response.message }}</p>
+          </div>
+
+          <div *ngIf="!selectedTicket.responses?.length" class="no-responses">
+            <i class="pi pi-comments"></i>
+            <span>Brak odpowiedzi</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="reply-form" *ngIf="selectedTicket.status !== 'closed'">
+        <h3>Odpowiedz</h3>
+        <textarea
+          [(ngModel)]="responseMessage"
+          placeholder="Napisz odpowiedź..."
+          rows="3">
+        </textarea>
+        <button
+          class="primary-btn"
+          (click)="sendResponse()"
+          [disabled]="!responseMessage.trim() || isSendingResponse">
+          <i class="pi" [ngClass]="isSendingResponse ? 'pi-spinner pi-spin' : 'pi-send'"></i>
+          Wyślij
+        </button>
+      </div>
+
+      <div class="closed-notice" *ngIf="selectedTicket.status === 'closed'">
+        <i class="pi pi-lock"></i>
+        <span>To zgłoszenie zostało zamknięte</span>
+      </div>
+    </div>
+  </div>
+</div>

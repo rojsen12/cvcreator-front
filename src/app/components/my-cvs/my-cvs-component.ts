@@ -37,7 +37,6 @@ export class MyCvsComponent implements OnInit {
         this.loading = false;
       },
       error: (err) => {
-        console.error('Error loading CVs:', err);
         this.error = 'Nie udało się załadować CV';
         this.loading = false;
       }
@@ -76,7 +75,6 @@ export class MyCvsComponent implements OnInit {
         this.deletingId = null;
       },
       error: (err) => {
-        console.error('Error deleting CV:', err);
         alert('Nie udało się usunąć CV');
         this.deletingId = null;
       }
