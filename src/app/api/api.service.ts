@@ -17,7 +17,38 @@ export interface User {
   id: string;
   username: string;
   email: string;
-  role: string;
+  role: 'ADMIN' | 'USER';
+}
+
+export interface Ticket {
+  id: string;
+  subject: string;
+  message: string;
+  category: string;
+  priority: string;
+  status: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  createdAt: string;
+  updatedAt: string;
+  responses: TicketResponse[];
+}
+
+export interface TicketResponse {
+  id: string;
+  message: string;
+  authorId: string;
+  authorName: string;
+  authorRole: string;
+  createdAt: string;
+}
+
+export interface CreateTicketDTO {
+  subject: string;
+  message: string;
+  category: string;
+  priority: string;
 }
 
 @Injectable({
@@ -29,9 +60,19 @@ export class ApiService {
   public currentUser$ = this.currentUserSubject.asObservable();
 
   constructor(private http: HttpClient) {
+    this.loadUserFromStorage();
+  }
+
+  private loadUserFromStorage(): void {
     const savedUser = localStorage.getItem('currentUser');
+
     if (savedUser) {
-      this.currentUserSubject.next(JSON.parse(savedUser));
+      try {
+        const user = JSON.parse(savedUser) as User;
+        this.currentUserSubject.next(user);
+      } catch (e) {
+        localStorage.removeItem('currentUser');
+      }
     }
   }
 
@@ -53,16 +94,6 @@ export class ApiService {
           };
           localStorage.setItem('currentUser', JSON.stringify(user));
           this.currentUserSubject.next(user);
-        } else {
-          const user: User = {
-            id: '',
-            username: data.username,
-            email: '',
-            role: 'USER'
-          };
-          localStorage.setItem('currentUser', JSON.stringify(user));
-          this.currentUserSubject.next(user);
-          ;
         }
       })
     );
@@ -79,11 +110,52 @@ export class ApiService {
     );
   }
 
+  checkAuth(): Observable<User> {
+    return this.http.get<User>(`${this.apiUrl}/users/me`, {
+      withCredentials: true
+    }).pipe(
+      tap((user: User) => {
+        localStorage.setItem('currentUser', JSON.stringify(user));
+        this.currentUserSubject.next(user);
+      })
+    );
+  }
+
   isLoggedIn(): boolean {
     return this.currentUserSubject.value !== null;
   }
 
   getCurrentUser(): User | null {
     return this.currentUserSubject.value;
+  }
+
+  isAdmin(): boolean {
+    return this.currentUserSubject.value?.role === 'ADMIN';
+  }
+
+  createTicket(ticket: CreateTicketDTO): Observable<Ticket> {
+    return this.http.post<Ticket>(`${this.apiUrl}/tickets`, ticket, {
+      withCredentials: true
+    });
+  }
+
+  getMyTickets(): Observable<Ticket[]> {
+    return this.http.get<Ticket[]>(`${this.apiUrl}/tickets/my`, {
+      withCredentials: true
+    });
+  }
+
+  getTicketById(id: string): Observable<Ticket> {
+    return this.http.get<Ticket>(`${this.apiUrl}/tickets/${id}`, {
+      withCredentials: true
+    });
+  }
+
+  addTicketResponse(ticketId: string, message: string): Observable<TicketResponse> {
+    return this.http.post<TicketResponse>(
+      `${this.apiUrl}/tickets/${ticketId}/responses`,
+      { message },
+      { withCredentials: true }
+    );
   }
 }
