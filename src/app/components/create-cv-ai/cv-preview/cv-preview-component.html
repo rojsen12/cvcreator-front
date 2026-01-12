@@ -1,0 +1,104 @@
+<div class="cv-container" *ngIf="structure">
+
+  <!-- Dane osobowe zawsze na górze (zazwyczaj) -->
+  <header class="cv-header">
+    <h1>{{ structure.personalInfo?.firstName }} {{ structure.personalInfo?.lastName }}</h1>
+    <div class="contact-info">
+      <span *ngIf="structure.personalInfo?.email">{{ structure.personalInfo.email }}</span>
+      <span *ngIf="structure.personalInfo?.phone"> | {{ structure.personalInfo.phone }}</span>
+      <span *ngIf="structure.personalInfo?.city"> | {{ structure.personalInfo.city }}</span>
+      <span *ngIf="structure.personalInfo?.country">, {{ structure.personalInfo.country }}</span>
+    </div>
+    <div class="links" *ngIf="structure.personalInfo?.linkedin || structure.personalInfo?.github">
+      <a *ngIf="structure.personalInfo?.linkedin" [href]="structure.personalInfo.linkedin" target="_blank">LinkedIn</a>
+      <a *ngIf="structure.personalInfo?.github" [href]="structure.personalInfo.github" target="_blank">GitHub</a>
+    </div>
+  </header>
+
+  <!-- DYNAMICZNA KOLEJNOŚĆ SEKCJI -->
+  <div *ngFor="let sectionKey of structure.sectionOrder">
+
+    <ng-container [ngSwitch]="sectionKey">
+
+      <!-- PODSUMOWANIE -->
+      <section *ngSwitchCase="'summary'" class="cv-section" [hidden]="!structure.summary">
+        <h2 class="section-title">Podsumowanie</h2>
+        <p>{{ structure.summary }}</p>
+      </section>
+
+      <!-- DOŚWIADCZENIE -->
+      <section *ngSwitchCase="'experience'" class="cv-section" [hidden]="!structure.experience?.length">
+        <h2 class="section-title">Doświadczenie zawodowe</h2>
+        <div *ngFor="let exp of structure.experience" class="experience-item">
+          <div class="experience-header">
+            <strong>{{ exp.title }}</strong> - {{ exp.company }}
+            <span class="date">{{ exp.startDate }} - {{ exp.endDate || 'Obecnie' }}</span>
+          </div>
+          <div class="location" *ngIf="exp.location">{{ exp.location }}</div>
+          <ul *ngIf="exp.description?.length">
+            <li *ngFor="let desc of exp.description">{{ desc }}</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- WYKSZTAŁCENIE -->
+      <section *ngSwitchCase="'education'" class="cv-section" [hidden]="!structure.education?.length">
+        <h2 class="section-title">Wykształcenie</h2>
+        <div *ngFor="let edu of structure.education" class="education-item">
+          <div class="education-header">
+            <strong>{{ edu.degree }}</strong> - {{ edu.fieldOfStudy }}
+            <span class="date">{{ edu.startDate }} - {{ edu.endDate }}</span>
+          </div>
+          <div>{{ edu.university }}, {{ edu.location }}</div>
+          <ul *ngIf="edu.description?.length">
+            <li *ngFor="let desc of edu.description">{{ desc }}</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- UMIEJĘTNOŚCI -->
+      <section *ngSwitchCase="'skills'" class="cv-section">
+        <div *ngIf="structure.skills?.technical?.length || structure.skills?.soft?.length || structure.skills?.languages?.length">
+          <h2 class="section-title">Umiejętności</h2>
+
+          <div *ngIf="structure.skills?.technical?.length" class="skill-group">
+            <strong>Techniczne:</strong> {{ structure.skills.technical.join(', ') }}
+          </div>
+
+          <div *ngIf="structure.skills?.soft?.length" class="skill-group">
+            <strong>Miękkie:</strong> {{ structure.skills.soft.join(', ') }}
+          </div>
+
+          <div *ngIf="structure.skills?.languages?.length" class="skill-group">
+            <strong>Języki:</strong>
+            <span *ngFor="let lang of structure.skills.languages; let last = last">
+              {{ lang.name }} ({{ lang.level }})<span *ngIf="!last">, </span>
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <!-- PROJEKTY -->
+      <section *ngSwitchCase="'projects'" class="cv-section" [hidden]="!structure.projects?.length">
+        <h2 class="section-title">Projekty</h2>
+        <div *ngFor="let project of structure.projects" class="project-item">
+          <div class="project-header">
+            <strong>{{ project.name }}</strong>
+            <a *ngIf="project.link" [href]="project.link" target="_blank" class="project-link">🔗</a>
+          </div>
+          <p>{{ project.description }}</p>
+          <div *ngIf="project.technologies?.length" class="technologies">
+            <strong>Technologie:</strong> {{ project.technologies.join(', ') }}
+          </div>
+        </div>
+      </section>
+
+      <!-- ZAINTERESOWANIA -->
+      <section *ngSwitchCase="'interests'" class="cv-section" [hidden]="!structure.interests?.length">
+        <h2 class="section-title">Zainteresowania</h2>
+        <p>{{ structure.interests.join(', ') }}</p>
+      </section>
+
+    </ng-container>
+  </div>
+</div>

@@ -40,7 +40,7 @@ export class NavbarComponent implements OnInit {
       {
         label: 'Stwórz CV',
         icon: 'pi pi-plus',
-        routerLink: ['/create-cv']
+        routerLink: ['/choose-method']
       },
       ...(!isAdmin ? [
         {

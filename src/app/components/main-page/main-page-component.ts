@@ -15,8 +15,9 @@ export class MainPageComponent {
   constructor(private router: Router) {}
 
   createCV(): void {
-    this.router.navigate(['/create-cv']);
+    this.router.navigate(['/choose-method']);
   }
+
 
   viewMyCVs(): void {
     this.router.navigate(['/my-cvs']);

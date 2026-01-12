@@ -11,6 +11,9 @@ import { adminGuard } from './guards/admin-guard';
 import { CreateTicketComponent } from './components/create-ticket/create-ticket-component';
 import { MyTicketsComponent } from './components/my-tickets/my-tickets-component';
 import { TicketComponent } from './components/ticket/ticket-component';
+import {ChooseMethodComponent} from './components/choose-method/choose-method-component';
+import {CreateCvAiComponent} from './components/create-cv-ai/create-cv-ai-component';
+import {CvChatComponent} from './components/cv-chat/cv-chat.component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -24,6 +27,9 @@ export const routes: Routes = [
   { path: 'create-ticket', component: CreateTicketComponent, canActivate: [authGuard] },
   { path: 'my-tickets', component: MyTicketsComponent, canActivate: [authGuard] },
   { path: 'admin', component: TicketComponent, canActivate: [authGuard, adminGuard] },
+  { path: 'choose-method', component: ChooseMethodComponent, canActivate: [authGuard] },
+  { path: 'create-cv-ai', component: CreateCvAiComponent, canActivate: [authGuard] },
+  { path: 'cv-chat', component: CvChatComponent, canActivate: [authGuard] },
   { path: '', redirectTo: 'main-page', pathMatch: 'full' },
   { path: '**', redirectTo: 'login' }
 ];

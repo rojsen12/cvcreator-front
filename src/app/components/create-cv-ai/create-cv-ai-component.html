@@ -1,0 +1,56 @@
+<div class="navbar-container">
+  <app-navbar></app-navbar>
+</div>
+
+<div class="page-wrapper split-view">
+
+  <div class="preview-pane">
+    <app-cv-preview
+      [structure]="state.currentStructure">
+    </app-cv-preview>
+  </div>
+
+  <div class="chat-pane">
+
+    <h2 class="pane-title">Asystent AI</h2>
+
+    <div class="chat-history">
+      <div
+        *ngFor="let msg of state.chatHistory"
+        class="chat-message"
+        [class.user]="msg.role === 'user'"
+        [class.assistant]="msg.role === 'assistant'">
+        {{ msg.message }}
+      </div>
+
+      <div
+        class="chat-message assistant"
+        *ngIf="state.chatHistory.length === 0">
+        Opisz swoje CV, a na bieżąco będę je budować.
+      </div>
+    </div>
+
+    <textarea
+      class="chat-input"
+      rows="4"
+      placeholder="Np. Frontend developer, CV z naciskiem na projekty..."
+      [(ngModel)]="userInput">
+    </textarea>
+
+    <div class="chat-actions">
+      <button
+        class="primary-btn"
+        (click)="sendPrompt()">
+        Wyślij
+      </button>
+
+      <button
+        class="primary-btn"
+        [disabled]="!state.currentStructure"
+        (click)="downloadCv()">
+        Pobierz CV
+      </button>
+    </div>
+
+  </div>
+</div>
