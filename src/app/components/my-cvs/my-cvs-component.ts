@@ -2,7 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { CVService} from '../../services/cv-service';
-import { CV} from '../../models/cv-model';
+import { AllCvsService, UnifiedCV} from '../../services/all-cvs-service';
+import { CV } from '../../models/cv-model';
 import { NavbarComponent} from '../navbar/navbar-component';
 
 @Component({
@@ -13,13 +14,14 @@ import { NavbarComponent} from '../navbar/navbar-component';
   styleUrls: ['./my-cvs-component.css']
 })
 export class MyCvsComponent implements OnInit {
-  cvs: CV[] = [];
+  cvs: UnifiedCV[] = [];
   loading: boolean = true;
   error: string = '';
   deletingId: string | null = null;
 
   constructor(
     private cvService: CVService,
+    private allCvsService: AllCvsService,
     private router: Router
   ) {}
 
@@ -31,7 +33,7 @@ export class MyCvsComponent implements OnInit {
     this.loading = true;
     this.error = '';
 
-    this.cvService.getAllCVs().subscribe({
+    this.allCvsService.getAllCVs().subscribe({
       next: (cvs) => {
         this.cvs = cvs;
         this.loading = false;
@@ -48,14 +50,34 @@ export class MyCvsComponent implements OnInit {
   }
 
   viewCV(id: string | undefined): void {
-    if (id) {
+    if (!id) return;
+
+    const cv = this.cvs.find(c => c.id === id);
+    if (!cv) {
       this.router.navigate(['/preview-cv', id]);
+      return;
+    }
+
+    if (cv.type === 'normal') {
+      this.router.navigate(['/preview-cv', id]);
+    } else {
+      this.router.navigate(['/cv-preview'], { state: { cv: cv.data } });
     }
   }
 
   editCV(id: string | undefined): void {
-    if (id) {
+    if (!id) return;
+
+    const cv = this.cvs.find(c => c.id === id);
+    if (!cv) {
       this.router.navigate(['/edit-cv', id]);
+      return;
+    }
+
+    if (cv.type === 'normal') {
+      this.router.navigate(['/edit-cv', id]);
+    } else {
+      this.router.navigate(['/cv-chat'], { state: { loadExisting: true } });
     }
   }
 
@@ -69,25 +91,83 @@ export class MyCvsComponent implements OnInit {
 
     this.deletingId = id;
 
-    this.cvService.deleteCV(id).subscribe({
-      next: () => {
-        this.cvs = this.cvs.filter(cv => cv.id !== id);
-        this.deletingId = null;
-      },
-      error: (err) => {
-        alert('Nie udało się usunąć CV');
-        this.deletingId = null;
-      }
-    });
+    const cv = this.cvs.find(c => c.id === id);
+
+    if (cv && cv.type === 'ai') {
+      this.allCvsService.deleteCV(cv).subscribe({
+        next: () => {
+          this.cvs = this.cvs.filter(c => c.id !== id);
+          this.deletingId = null;
+        },
+        error: (err) => {
+          alert('Nie udało się usunąć CV');
+          this.deletingId = null;
+        }
+      });
+    } else {
+      this.cvService.deleteCV(id).subscribe({
+        next: () => {
+          this.cvs = this.cvs.filter(c => c.id !== id);
+          this.deletingId = null;
+        },
+        error: (err) => {
+          alert('Nie udało się usunąć CV');
+          this.deletingId = null;
+        }
+      });
+    }
   }
 
-  downloadPDF(cv: CV, event: Event): void {
+  downloadPDF(cv: CV | UnifiedCV, event: Event): void {
     event.stopPropagation();
-    alert(`Pobieranie CV: ${cv.firstName} ${cv.lastName}\n(Funkcja PDF wkrótce!)`);
+
+    const unifiedCv = cv as UnifiedCV;
+
+    if (!unifiedCv.id) {
+      alert('Błąd: Brak ID CV');
+      return;
+    }
+
+    if (unifiedCv.type === 'ai') {
+      this.router.navigate(['/cv-preview'], {
+        state: { cv: unifiedCv.data, autoPrint: true }
+      });
+      return;
+    }
+
+    const url = this.router.serializeUrl(
+      this.router.createUrlTree(['/preview-cv', unifiedCv.id])
+    );
+
+    const win = window.open(url, '_blank');
+
+    if (win) {
+      win.addEventListener('load', () => {
+        setTimeout(() => {
+          win.print();
+        }, 500);
+      });
+
+      const hasSeenTip = localStorage.getItem('pdf-tip-seen');
+    } else {
+      alert('Zablokowano okno popup. Włącz wyskakujące okna dla tej strony.');
+    }
   }
 
-  getFullName(cv: CV): string {
-    return `${cv.firstName} ${cv.lastName}`;
+  getFullName(cv: CV | UnifiedCV): string {
+    const unifiedCv = cv as UnifiedCV;
+
+    if (unifiedCv.type === 'ai') {
+      return unifiedCv.name;
+    }
+
+    if (unifiedCv.type === 'normal') {
+      const normalData = unifiedCv.data as CV;
+      return `${normalData.firstName} ${normalData.lastName}`;
+    }
+
+    const normalCv = cv as CV;
+    return `${normalCv.firstName} ${normalCv.lastName}`;
   }
 
   getTemplateGradient(templateType: string): string {
@@ -109,15 +189,45 @@ export class MyCvsComponent implements OnInit {
     });
   }
 
-  getExperienceCount(cv: CV): number {
-    return cv.experiences?.length || 0;
+  getExperienceCount(cv: CV | UnifiedCV): number {
+    const unifiedCv = cv as UnifiedCV;
+
+    if (unifiedCv.type === 'ai') return 0;
+
+    if (unifiedCv.type === 'normal') {
+      const normalData = unifiedCv.data as CV;
+      return normalData.experiences?.length || 0;
+    }
+
+    const normalCv = cv as CV;
+    return normalCv.experiences?.length || 0;
   }
 
-  getEducationCount(cv: CV): number {
-    return cv.educations?.length || 0;
+  getEducationCount(cv: CV | UnifiedCV): number {
+    const unifiedCv = cv as UnifiedCV;
+
+    if (unifiedCv.type === 'ai') return 0;
+
+    if (unifiedCv.type === 'normal') {
+      const normalData = unifiedCv.data as CV;
+      return normalData.educations?.length || 0;
+    }
+
+    const normalCv = cv as CV;
+    return normalCv.educations?.length || 0;
   }
 
-  getSkillsCount(cv: CV): number {
-    return cv.skills?.length || 0;
+  getSkillsCount(cv: CV | UnifiedCV): number {
+    const unifiedCv = cv as UnifiedCV;
+
+    if (unifiedCv.type === 'ai') return 0;
+
+    if (unifiedCv.type === 'normal') {
+      const normalData = unifiedCv.data as CV;
+      return normalData.skills?.length || 0;
+    }
+
+    const normalCv = cv as CV;
+    return normalCv.skills?.length || 0;
   }
 }

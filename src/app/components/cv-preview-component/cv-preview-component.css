@@ -1,4 +1,3 @@
-/* ===== GŁÓWNY KONTENER ===== */
 .preview-container {
   min-height: 100vh;
   background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
@@ -6,37 +5,28 @@
   flex-direction: column;
 }
 
-/* ===== FIX DLA EKSPORTU PDF - BEZ ARTEFAKTÓW ===== */
 .cv-document {
-  /* Wymuś sprzętowe przyspieszenie renderowania */
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
 
-  /* Wygładź renderowanie tekstu */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* Zapobiegaj rozmazaniu podczas skalowania */
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
 
 .cv-page {
-  /* Zapobiegaj dziwnym artefaktom na krawędziach */
   overflow: hidden;
-
-  /* Wymuś ostre renderowanie */
   image-rendering: crisp-edges;
 }
 
-/* Wymuś ostre fonty w PDF */
 .cv-document * {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* ===== KOMUNIKAT O BRAKU DANYCH ===== */
 .no-data-message {
   display: flex;
   align-items: center;
@@ -110,7 +100,6 @@
   }
 }
 
-/* ===== TOOLBAR ===== */
 .toolbar {
   display: flex;
   align-items: center;
@@ -200,7 +189,6 @@
   color: #1e293b;
 }
 
-/* AI Edit Button */
 .ai-edit-btn {
   background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
   color: white;
@@ -263,7 +251,6 @@
   transform: none;
 }
 
-/* ===== MAIN CONTAINER ===== */
 .main-container {
   display: flex;
   flex: 1;
@@ -271,7 +258,6 @@
   position: relative;
 }
 
-/* ===== SELECTION HINT ===== */
 .selection-hint {
   background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
   border: 2px solid #fbbf24;
@@ -285,7 +271,6 @@
   box-shadow: 0 4px 15px rgba(251, 191, 36, 0.2);
 }
 
-/* ===== WRAPPER CV ===== */
 .preview-wrapper {
   flex: 1;
   display: flex;
@@ -300,7 +285,6 @@
   flex: 0 0 65%;
 }
 
-/* ===== DOKUMENT CV ===== */
 .cv-document {
   background: white;
   box-shadow: 0 10px 60px rgba(0, 0, 0, 0.15);
@@ -316,7 +300,6 @@
   box-sizing: border-box;
 }
 
-/* ===== EDITABLE SECTIONS ===== */
 .editable-section {
   cursor: text;
   position: relative;
@@ -355,7 +338,6 @@
   z-index: 10;
 }
 
-/* ===== SZABLON KLASYCZNY ===== */
 .cv-page.classic {
   padding: 25mm 20mm;
 }
@@ -406,7 +388,6 @@
   color: #334155;
 }
 
-/* ===== SZABLON NOWOCZESNY ===== */
 .cv-page.modern {
   display: grid;
   grid-template-columns: 250px 1fr;
@@ -478,7 +459,6 @@
   color: #334155;
 }
 
-/* ===== AI PANEL ===== */
 .ai-panel {
   position: fixed;
   right: -450px;
@@ -559,7 +539,6 @@
   overflow: hidden;
 }
 
-/* Selected Text Preview */
 .selected-text-preview {
   padding: 1rem 1.5rem;
   background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
@@ -583,7 +562,6 @@
   line-height: 1.5;
 }
 
-/* AI Messages */
 .ai-messages {
   flex: 1;
   overflow-y: auto;
@@ -650,7 +628,6 @@
   border-bottom-right-radius: 4px;
 }
 
-/* Typing Indicator */
 .typing-indicator {
   display: flex;
   gap: 4px;
@@ -684,7 +661,6 @@
   }
 }
 
-/* Quick Actions */
 .ai-quick-actions {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -719,7 +695,6 @@
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
 }
 
-/* AI Input Area */
 .ai-input-area {
   padding: 1rem 1.5rem;
   border-top: 2px solid #e2e8f0;
@@ -776,7 +751,6 @@
   transform: none;
 }
 
-/* ===== PROGRESS BAR ===== */
 .export-progress {
   position: fixed;
   bottom: 2rem;
@@ -813,7 +787,6 @@
   font-size: 0.9rem;
 }
 
-/* ===== SCROLLBARS ===== */
 .preview-wrapper::-webkit-scrollbar,
 .ai-messages::-webkit-scrollbar,
 .preview-text::-webkit-scrollbar {
@@ -839,7 +812,6 @@
   background: #94a3b8;
 }
 
-/* ===== DRUKOWANIE ===== */
 @media print {
   .toolbar,
   .export-progress,
@@ -892,7 +864,6 @@
   }
 }
 
-/* ===== RESPONSIVE ===== */
 @media (max-width: 1400px) {
   .preview-container.ai-panel-open .preview-wrapper {
     flex: 0 0 60%;
@@ -946,7 +917,6 @@
     grid-template-columns: 1fr;
   }
 }
-/* Save to Database Button */
 .save-db-btn {
   padding: 0.75rem 1.5rem;
   border-radius: 10px;

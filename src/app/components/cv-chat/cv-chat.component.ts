@@ -203,16 +203,21 @@ export class CvChatComponent implements OnInit, OnDestroy {
       const draft = JSON.parse(savedData);
 
       if (draft.sections) {
-        this.sections = { ...this.getEmptySections(), ...draft.sections };
+        const normalizedSections = this.getEmptySections();
+        Object.keys(draft.sections).forEach(key => {
+          const value = draft.sections[key];
+          normalizedSections[key as SectionKey] = typeof value === 'string' ? value : '';
+        });
+        this.sections = normalizedSections;
       } else {
         this.sections = {
-          personalInfo: draft.personalInfo || '',
-          summary: draft.summary || '',
-          experience: draft.experience || '',
-          education: draft.education || '',
-          skills: draft.skills || '',
-          projects: draft.projects || '',
-          interests: draft.interests || ''
+          personalInfo: this.normalizeValue(draft.personalInfo),
+          summary: this.normalizeValue(draft.summary),
+          experience: this.normalizeValue(draft.experience),
+          education: this.normalizeValue(draft.education),
+          skills: this.normalizeValue(draft.skills),
+          projects: this.normalizeValue(draft.projects),
+          interests: this.normalizeValue(draft.interests)
         };
       }
 
@@ -227,7 +232,26 @@ export class CvChatComponent implements OnInit, OnDestroy {
       }
     } catch (error) {
       console.error('Błąd wczytywania danych:', error);
+      localStorage.removeItem(this.STORAGE_KEY);
+      this.sections = this.getEmptySections();
     }
+  }
+
+  private normalizeValue(value: any): string {
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (value === null || value === undefined) {
+      return '';
+    }
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return '';
+      }
+    }
+    return String(value);
   }
 
   private getEmptySections(): Record<SectionKey, string> {

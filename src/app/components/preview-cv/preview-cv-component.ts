@@ -53,11 +53,11 @@ export class PreviewCvComponent implements OnInit {
   }
 
   downloadPDF(): void {
-    alert('Funkcja eksportu do PDF będzie dostępna wkrótce!');
+    window.print();
   }
 
   goBack(): void {
-    this.router.navigate(['/main-page']);
+    this.router.navigate(['/my-cvs']);
   }
 
   formatDate(date: Date | string | undefined): string {
