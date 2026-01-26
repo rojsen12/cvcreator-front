@@ -1,56 +1,55 @@
-<div class="navbar-container">
-  <app-navbar></app-navbar>
-</div>
+<div class="container">
+  <!-- Lewa strona: Podgląd CV -->
+  <div class="preview">
+    <h2>Podgląd CV</h2>
 
-<div class="page-wrapper split-view">
+    <div class="section" (click)="selectSection('personalInfo')"
+         [class.active]="activeSection === 'personalInfo'">
+      <h3>Dane osobowe</h3>
+      <pre>{{ sections.personalInfo || 'Kliknij aby edytować...' }}</pre>
+    </div>
 
-  <div class="preview-pane">
-    <app-cv-preview
-      [structure]="state.currentStructure">
-    </app-cv-preview>
+    <div class="section" (click)="selectSection('summary')"
+         [class.active]="activeSection === 'summary'">
+      <h3>O mnie</h3>
+      <pre>{{ sections.summary || 'Kliknij aby edytować...' }}</pre>
+    </div>
+
+    <div class="section" (click)="selectSection('experience')"
+         [class.active]="activeSection === 'experience'">
+      <h3>Doświadczenie</h3>
+      <pre>{{ sections.experience || 'Kliknij aby edytować...' }}</pre>
+    </div>
+
+    <div class="section" (click)="selectSection('skills')"
+         [class.active]="activeSection === 'skills'">
+      <h3>Umiejętności</h3>
+      <pre>{{ sections.skills || 'Kliknij aby edytować...' }}</pre>
+    </div>
   </div>
 
-  <div class="chat-pane">
-
-    <h2 class="pane-title">Asystent AI</h2>
-
-    <div class="chat-history">
-      <div
-        *ngFor="let msg of state.chatHistory"
-        class="chat-message"
-        [class.user]="msg.role === 'user'"
-        [class.assistant]="msg.role === 'assistant'">
-        {{ msg.message }}
+  <!-- Prawa strona: Czat -->
+  <div class="chat">
+    <div class="messages">
+      <div *ngFor="let msg of chatHistory"
+           [class]="msg.role">
+        {{ msg.text }}
       </div>
-
-      <div
-        class="chat-message assistant"
-        *ngIf="state.chatHistory.length === 0">
-        Opisz swoje CV, a na bieżąco będę je budować.
+      <div *ngIf="loading" class="assistant">
+        Generuję...
       </div>
     </div>
 
-    <textarea
-      class="chat-input"
-      rows="4"
-      placeholder="Np. Frontend developer, CV z naciskiem na projekty..."
-      [(ngModel)]="userInput">
-    </textarea>
-
-    <div class="chat-actions">
-      <button
-        class="primary-btn"
-        (click)="sendPrompt()">
-        Wyślij
-      </button>
-
-      <button
-        class="primary-btn"
-        [disabled]="!state.currentStructure"
-        (click)="downloadCv()">
-        Pobierz CV
+    <div class="input-area">
+      <textarea
+        [(ngModel)]="userInput"
+        (keydown.enter)="$event.preventDefault(); send()"
+        placeholder="Opisz co chcesz dodać..."
+        [disabled]="loading">
+      </textarea>
+      <button (click)="send()" [disabled]="loading">
+        {{ loading ? 'Generuję...' : 'Wyślij' }}
       </button>
     </div>
-
   </div>
 </div>

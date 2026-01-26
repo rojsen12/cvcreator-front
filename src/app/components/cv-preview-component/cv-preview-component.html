@@ -1,0 +1,162 @@
+<div class="preview-container" [class.ai-panel-open]="isAiPanelOpen">
+  <div class="toolbar">
+    <button class="back-btn" (click)="goBack()">← Wróć do edycji</button>
+
+    <div class="toolbar-center">
+      <h1>📄 Podgląd CV</h1>
+      <div class="template-selector">
+        <button class="template-btn" [class.active]="selectedTemplate === 'classic'" (click)="selectTemplate('classic')">📋 Klasyczny</button>
+        <button class="template-btn" [class.active]="selectedTemplate === 'modern'" (click)="selectTemplate('modern')">🎨 Nowoczesny</button>
+      </div>
+    </div>
+
+    <div class="toolbar-actions">
+      <button class="save-db-btn" (click)="saveToDatabase()" [disabled]="isSaving || !cvData">
+        <span *ngIf="!isSaving">💾 Zapisz w profilu</span>
+        <span *ngIf="isSaving">⏳ Zapisywanie...</span>
+      </button>
+
+      <button class="ai-edit-btn" (click)="openAiPanel()" [disabled]="!hasSelection()" [class.has-selection]="hasSelection()">
+        <span *ngIf="!hasSelection()">🤖 Zaznacz tekst</span>
+        <span *ngIf="hasSelection()">✨ Edytuj z AI</span>
+      </button>
+
+      <button class="print-btn" (click)="print()">🖨️ Drukuj</button>
+      <button class="export-btn" (click)="exportToPDF()" [disabled]="isExporting">📥 Pobierz PDF</button>
+    </div>
+  </div>
+
+  <div class="main-container">
+    <div class="preview-wrapper">
+      <div class="cv-document" *ngIf="cvData" [class.template-classic]="selectedTemplate === 'classic'" [class.template-modern]="selectedTemplate === 'modern'">
+
+        <ng-container *ngIf="selectedTemplate === 'classic'">
+          <div class="cv-page classic">
+            <div class="cv-header classic-header">
+              <div class="header-content">
+                <img *ngIf="getProfilePhoto()" [src]="getProfilePhoto()" class="profile-photo classic-photo">
+                <div class="personal-info classic-info editable-section" [attr.data-section]="'personalInfo'" [innerHTML]="safeSections['personalInfo']"></div>
+              </div>
+            </div>
+            <div class="cv-body">
+              <div *ngFor="let key of cvData.sectionOrder">
+                <div class="cv-section classic-section" *ngIf="hasContent(key) && key !== 'personalInfo'">
+                  <h2 class="section-title classic-title">{{ sectionNames[key] }}</h2>
+                  <div class="section-content classic-content editable-section" [attr.data-section]="key" [innerHTML]="safeSections[key]"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+
+        <ng-container *ngIf="selectedTemplate === 'modern'">
+          <div class="cv-page modern">
+            <div class="modern-sidebar">
+              <img *ngIf="getProfilePhoto()" [src]="getProfilePhoto()" class="profile-photo modern-photo">
+              <div class="sidebar-section">
+                <h2 class="sidebar-title">Kontakt</h2>
+                <div class="sidebar-content editable-section" [attr.data-section]="'personalInfo'" [innerHTML]="safeSections['personalInfo']"></div>
+              </div>
+              <div *ngIf="hasContent('skills')" class="sidebar-section">
+                <h2 class="sidebar-title">Umiejętności</h2>
+                <div class="sidebar-content editable-section" [attr.data-section]="'skills'" [innerHTML]="safeSections['skills']"></div>
+              </div>
+            </div>
+
+            <div class="modern-main">
+              <div *ngFor="let key of modernMainSections" class="modern-section">
+                <ng-container *ngIf="hasContent(key)">
+                  <h2 class="modern-title">{{ sectionNames[key] }}</h2>
+                  <div class="modern-content editable-section" [attr.data-section]="key" [innerHTML]="safeSections[key]"></div>
+                </ng-container>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+
+    <div class="ai-panel" [class.open]="isAiPanelOpen">
+      <div class="ai-panel-header">
+        <div class="ai-panel-title">
+          <span class="ai-icon">🤖</span>
+          <h3>Edycja AI</h3>
+          <span class="ai-section-badge" *ngIf="activeEditSection">
+            {{ sectionNames[activeEditSection] }}
+          </span>
+        </div>
+        <button class="ai-close-btn" (click)="closeAiPanel()">✕</button>
+      </div>
+
+      <div class="ai-panel-body">
+        <div class="selected-text-preview" *ngIf="selectionContext">
+          <div class="preview-label">Zaznaczony fragment:</div>
+          <div class="preview-text">{{ selectionContext.selectedText }}</div>
+        </div>
+
+        <div class="ai-messages">
+          <div *ngFor="let msg of aiMessages" [class]="'ai-message ' + msg.role">
+            <div class="message-avatar">
+              <span *ngIf="msg.role === 'assistant'">🤖</span>
+              <span *ngIf="msg.role === 'user'">👤</span>
+            </div>
+            <div class="message-content">{{ msg.text }}</div>
+          </div>
+
+          <div class="ai-message assistant" *ngIf="isAiProcessing">
+            <div class="message-avatar">🤖</div>
+            <div class="message-content">
+              <div class="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ai-quick-actions" *ngIf="!isAiProcessing && aiMessages.length > 0">
+          <button class="quick-action-btn" (click)="aiUserInput = 'pogrub'; sendAiEdit()">
+            <b>B</b> Pogrub
+          </button>
+          <button class="quick-action-btn" (click)="aiUserInput = 'kursywa'; sendAiEdit()">
+            <i>I</i> Kursywa
+          </button>
+          <button class="quick-action-btn" (click)="aiUserInput = 'zmień na czerwony'; sendAiEdit()">
+            🔴 Czerwony
+          </button>
+          <button class="quick-action-btn" (click)="aiUserInput = 'zmień na niebieski'; sendAiEdit()">
+            🔵 Niebieski
+          </button>
+          <button class="quick-action-btn" (click)="aiUserInput = 'wyśrodkuj'; sendAiEdit()">
+            ⬌ Wyśrodkuj
+          </button>
+          <button class="quick-action-btn undo-btn" (click)="undoLastEdit()" [disabled]="!canUndo()">
+            ↩️ Cofnij
+          </button>
+        </div>
+
+        <div class="ai-input-area">
+          <textarea
+            [(ngModel)]="aiUserInput"
+            (keydown)="onAiInputKeyDown($event)"
+            placeholder="Opisz jak chcesz edytować zaznaczony tekst..."
+            [disabled]="isAiProcessing"
+            rows="3">
+          </textarea>
+          <button class="ai-send-btn" (click)="sendAiEdit()" [disabled]="isAiProcessing || !aiUserInput.trim()">
+            <span *ngIf="!isAiProcessing">Wyślij</span>
+            <span *ngIf="isAiProcessing">Przetwarzam...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="export-progress" *ngIf="isExporting">
+    <div class="progress-bar">
+      <div class="progress-fill" [style.width.%]="exportProgress"></div>
+    </div>
+    <p class="progress-text">Generuję PDF... {{ exportProgress }}%</p>
+  </div>
+</div>

@@ -61,15 +61,15 @@
           <p class="cv-email">{{ cv.email }}</p>
 
           <div class="cv-stats">
-            <div class="stat-item" *ngIf="getExperienceCount(cv) > 0">
+            <div class="stat-item" *ngIf="getExperienceCount(cv) >= 0">
               <i class="pi pi-briefcase"></i>
               <span>{{ getExperienceCount(cv) }}</span>
             </div>
-            <div class="stat-item" *ngIf="getEducationCount(cv) > 0">
+            <div class="stat-item" *ngIf="getEducationCount(cv) >= 0">
               <i class="pi pi-book"></i>
               <span>{{ getEducationCount(cv) }}</span>
             </div>
-            <div class="stat-item" *ngIf="getSkillsCount(cv) > 0">
+            <div class="stat-item" *ngIf="getSkillsCount(cv) >= 0">
               <i class="pi pi-cog"></i>
               <span>{{ getSkillsCount(cv) }}</span>
             </div>

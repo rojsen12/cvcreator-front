@@ -10,5 +10,5 @@ import { AiCvContent } from '../../../models/cv-content.model';
   styleUrl: './cv-preview-component.css'
 })
 export class CvPreviewComponent {
-  @Input() structure: AiCvContent | null = null; // ZMIANA: przyjmujemy AiCvContent
+  @Input() structure: AiCvContent | null = null;
 }

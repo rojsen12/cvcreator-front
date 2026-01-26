@@ -1,25 +1,38 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Router } from '@angular/router';
+import { Router, NavigationEnd } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { AiCvService, SectionRequest, SectionResponse } from '../../services/ai-cv-service';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { filter } from 'rxjs/operators';
+import { Subscription } from 'rxjs';
 
 interface ChatMessage {
-  type: 'user' | 'ai' | 'system';
-  content: string;
-  sectionType?: string;
-  generatedData?: any;
+  role: 'user' | 'assistant';
+  text: string;
 }
 
+type SectionKey = 'personalInfo' | 'summary' | 'experience' | 'education' | 'skills' | 'projects' | 'interests';
+
 interface CvDraft {
-  personalInfo?: any;
-  summary?: string;
-  experience?: any[];
-  education?: any[];
-  skills?: any;
-  projects?: any[];
-  interests?: string[];
-  sectionOrder?: string[];
+  sections: Record<SectionKey, string>;
+  sectionOrder: SectionKey[];
+  profilePhoto: string | null;
+  activeSection: SectionKey;
+  lastModified: number;
+}
+
+export interface CvData {
+  personalInfo: string;
+  summary: string;
+  experience: string;
+  education: string;
+  skills: string;
+  projects: string;
+  interests: string;
+  sectionOrder: SectionKey[];
+  profilePhoto: string | null;
 }
 
 @Component({
@@ -29,298 +42,565 @@ interface CvDraft {
   templateUrl: './cv-chat.component.html',
   styleUrl: './cv-chat.component.css'
 })
-export class CvChatComponent implements OnInit {
+export class CvChatComponent implements OnInit, OnDestroy {
+  private readonly STORAGE_KEY = 'cvDraft';
+  private readonly AUTO_SAVE_INTERVAL = 30000;
+  private autoSaveTimer: ReturnType<typeof setInterval> | null = null;
+  private routerSubscription: Subscription | null = null;
 
-  steps = ['personalInfo', 'summary', 'experience', 'education', 'skills', 'projects', 'interests'];
-  currentStep = 'personalInfo';
-  currentStepIndex = 0;
-
-  messages: ChatMessage[] = [];
   userInput = '';
-  isLoading = false;
+  activeSection: SectionKey = 'personalInfo';
+  loading = false;
+  profilePhoto: string | null = null;
+  photoFile: File | null = null;
+  photoError = '';
+  isDraggingPhoto = false;
 
-  cvDraft: CvDraft = {};
+  sections: Record<SectionKey, string> = {
+    personalInfo: '',
+    summary: '',
+    experience: '',
+    education: '',
+    skills: '',
+    projects: '',
+    interests: ''
+  };
 
-  private apiUrl = 'http://localhost:8080/api/cv-chat';
+  readonly sectionNames: Record<SectionKey, string> = {
+    personalInfo: 'Dane osobowe',
+    summary: 'Podsumowanie',
+    experience: 'Doświadczenie',
+    education: 'Wykształcenie',
+    skills: 'Umiejętności',
+    projects: 'Projekty',
+    interests: 'Zainteresowania'
+  };
+
+  sectionKeys: SectionKey[] = [
+    'personalInfo',
+    'summary',
+    'experience',
+    'education',
+    'skills',
+    'projects',
+    'interests'
+  ];
+
+  chatHistory: ChatMessage[] = [];
+  draggedSectionIndex: number | null = null;
+  editingSection: SectionKey | null = null;
 
   constructor(
-    private http: HttpClient,
-    private router: Router
+    private aiService: AiCvService,
+    private router: Router,
+    private sanitizer: DomSanitizer
   ) {}
 
   ngOnInit(): void {
-    this.addSystemMessage('Cześć! 👋 Pomogę Ci stworzyć profesjonalne CV krok po kroku. Zacznijmy od podstaw - podaj swoje imię, nazwisko i dane kontaktowe (email, telefon, miasto).');
+    this.loadSavedData();
+    this.startAutoSave();
+    this.initializeChat();
+    this.setupRouterListener();
   }
 
-  // ===== KROKI I ETYKIETY =====
-
-  getStepLabel(step: string): string {
-    const labels: Record<string, string> = {
-      personalInfo: 'Dane osobowe',
-      summary: 'Podsumowanie',
-      experience: 'Doświadczenie',
-      education: 'Wykształcenie',
-      skills: 'Umiejętności',
-      projects: 'Projekty',
-      interests: 'Zainteresowania'
-    };
-    return labels[step] || step;
+  ngOnDestroy(): void {
+    this.stopAutoSave();
+    this.routerSubscription?.unsubscribe();
   }
 
-  getStepIcon(step: string): string {
-    const icons: Record<string, string> = {
-      personalInfo: '👤',
-      summary: '📝',
-      experience: '💼',
-      education: '🎓',
-      skills: '⚡',
-      projects: '🚀',
-      interests: '❤️'
-    };
-    return icons[step] || '📌';
-  }
-
-  getStepHint(step: string): string {
-    const hints: Record<string, string> = {
-      personalInfo: 'Podaj imię, nazwisko, email, telefon, miasto.',
-      summary: 'Opisz siebie w kilku zdaniach - kim jesteś zawodowo i co Cię wyróżnia?',
-      experience: 'Opisz swoje doświadczenie zawodowe - stanowiska, firmy, daty, obowiązki.',
-      education: 'Podaj informacje o wykształceniu - uczelnia, kierunek, stopień, lata nauki.',
-      skills: 'Wymień swoje umiejętności techniczne i miękkie.',
-      projects: 'Opisz projekty nad którymi pracowałeś - nazwa, opis, technologie.',
-      interests: 'Jakie masz zainteresowania i hobby?'
-    };
-    return hints[step] || '';
-  }
-
-  isStepCompleted(step: string): boolean {
-    const data = (this.cvDraft as any)[step];
-    if (Array.isArray(data)) {
-      return data.length > 0;
+  private initializeChat(): void {
+    if (this.chatHistory.length === 0) {
+      this.chatHistory.push({
+        role: 'assistant',
+        text: 'Cześć! 👋 Pomogę Ci stworzyć CV. Kliknij sekcję którą chcesz edytować i opisz co chcesz dodać.'
+      });
     }
-    return data !== undefined && data !== null;
   }
 
-  isStepActive(step: string): boolean {
-    return this.currentStep === step;
-  }
-
-  getCompletedStepsCount(): number {
-    return this.steps.filter(step => this.isStepCompleted(step)).length;
-  }
-
-  // ===== WIADOMOŚCI =====
-
-  addSystemMessage(content: string): void {
-    this.messages.push({ type: 'system', content });
-    this.scrollToBottom();
-  }
-
-  addUserMessage(content: string): void {
-    this.messages.push({ type: 'user', content });
-    this.scrollToBottom();
-  }
-
-  addAiMessage(content: string, sectionType?: string, generatedData?: any): void {
-    this.messages.push({
-      type: 'ai',
-      content,
-      sectionType,
-      generatedData
+  private setupRouterListener(): void {
+    this.routerSubscription = this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd)
+    ).subscribe(() => {
+      this.loadSavedData();
     });
-    this.scrollToBottom();
   }
 
-  // ===== WYSYŁANIE I GENEROWANIE =====
-
-  sendMessage(): void {
-    if (!this.userInput.trim() || this.isLoading) return;
-
-    const input = this.userInput.trim();
-    this.userInput = '';
-
-    this.addUserMessage(input);
-    this.generateSection(input);
+  private startAutoSave(): void {
+    this.autoSaveTimer = setInterval(() => {
+      this.saveData();
+    }, this.AUTO_SAVE_INTERVAL);
   }
 
-  generateSection(input: string): void {
-    this.isLoading = true;
+  private stopAutoSave(): void {
+    if (this.autoSaveTimer) {
+      clearInterval(this.autoSaveTimer);
+      this.autoSaveTimer = null;
+    }
+  }
 
-    this.http.post<any>(
-      `${this.apiUrl}/generate-section`,
-      {
-        sectionType: this.currentStep,
-        userInput: input,
-        language: 'pl'
-      },
-      { withCredentials: true }
-    ).subscribe({
-      next: (response) => {
-        this.isLoading = false;
+  clearActiveSection(): void {
+    const sectionName = this.sectionNames[this.activeSection];
+    if (confirm(`Czy na pewno chcesz wyczyścić całą treść sekcji "${sectionName}"?`)) {
+      this.sections[this.activeSection] = '';
+      this.chatHistory.push({
+        role: 'assistant',
+        text: `Wyczyszczono zawartość sekcji: ${sectionName}. Możemy zacząć od nowa!`
+      });
+      this.saveData();
+    }
+  }
 
-        if (response.success) {
-          this.addAiMessage(
-            `Oto moja propozycja dla sekcji "${this.getStepLabel(this.currentStep)}":`,
-            response.sectionType,
-            response.generatedContent
-          );
-        } else {
-          this.addAiMessage(`Przepraszam, wystąpił problem: ${response.message}. Spróbuj opisać to inaczej.`);
+  clearSectionByKey(key: SectionKey, event: Event): void {
+    event.stopPropagation();
+    const sectionName = this.sectionNames[key];
+    if (confirm(`Czy na pewno chcesz usunąć treść z sekcji "${sectionName}"?`)) {
+      this.sections[key] = '';
+      this.saveData();
+    }
+  }
+
+  clearChatHistory(): void {
+    this.chatHistory = [{
+      role: 'assistant',
+      text: 'Historia czatu została wyczyszczona. W czym mogę Ci teraz pomóc?'
+    }];
+  }
+
+  clearAllTextContent(): void {
+    if (confirm('Czy na pewno chcesz wyczyścić TREŚĆ wszystkich sekcji? Zdjęcie i układ zostaną zachowane.')) {
+      this.sectionKeys.forEach(key => {
+        this.sections[key] = '';
+      });
+      this.saveData();
+      this.chatHistory.push({
+        role: 'assistant',
+        text: 'Wyczyszczono całą treść CV. Twoje zdjęcie i układ sekcji pozostały bez zmian.'
+      });
+    }
+  }
+
+  private saveData(): void {
+    const cvDraft: CvDraft = {
+      sections: { ...this.sections },
+      sectionOrder: [...this.sectionKeys],
+      profilePhoto: this.profilePhoto,
+      activeSection: this.activeSection,
+      lastModified: Date.now()
+    };
+
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(cvDraft));
+    } catch (e) {
+      console.error('Błąd zapisu do localStorage:', e);
+    }
+  }
+
+  private loadSavedData(): void {
+    const savedData = localStorage.getItem(this.STORAGE_KEY);
+    if (!savedData) return;
+
+    try {
+      const draft = JSON.parse(savedData);
+
+      if (draft.sections) {
+        this.sections = { ...this.getEmptySections(), ...draft.sections };
+      } else {
+        this.sections = {
+          personalInfo: draft.personalInfo || '',
+          summary: draft.summary || '',
+          experience: draft.experience || '',
+          education: draft.education || '',
+          skills: draft.skills || '',
+          projects: draft.projects || '',
+          interests: draft.interests || ''
+        };
+      }
+
+      if (draft.sectionOrder && Array.isArray(draft.sectionOrder)) {
+        this.sectionKeys = draft.sectionOrder;
+      }
+
+      this.profilePhoto = draft.profilePhoto || null;
+
+      if (draft.activeSection && this.sectionKeys.includes(draft.activeSection)) {
+        this.activeSection = draft.activeSection;
+      }
+    } catch (error) {
+      console.error('Błąd wczytywania danych:', error);
+    }
+  }
+
+  private getEmptySections(): Record<SectionKey, string> {
+    return {
+      personalInfo: '',
+      summary: '',
+      experience: '',
+      education: '',
+      skills: '',
+      projects: '',
+      interests: ''
+    };
+  }
+
+  onPhotoSelect(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      this.processPhotoFile(input.files[0]);
+    }
+  }
+
+  onPhotoDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDraggingPhoto = false;
+
+    if (event.dataTransfer?.files && event.dataTransfer.files[0]) {
+      this.processPhotoFile(event.dataTransfer.files[0]);
+    }
+  }
+
+  onPhotoDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDraggingPhoto = true;
+  }
+
+  onPhotoDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDraggingPhoto = false;
+  }
+
+  private processPhotoFile(file: File): void {
+    this.photoError = '';
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      this.photoError = 'Dozwolone formaty: JPG, PNG, WebP, GIF';
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      this.photoError = 'Maksymalny rozmiar pliku: 5MB';
+      return;
+    }
+
+    this.photoFile = file;
+
+    const reader = new FileReader();
+    reader.onload = (e: ProgressEvent<FileReader>) => {
+      const result = e.target?.result as string;
+      if (result) {
+        this.resizeImage(result, 400, 400).then(resizedImage => {
+          this.profilePhoto = resizedImage;
+          this.saveData();
+        });
+      }
+    };
+    reader.onerror = () => {
+      this.photoError = 'Błąd wczytywania pliku';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  private resizeImage(base64: string, maxWidth: number, maxHeight: number): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
         }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
+        } else {
+          reject(new Error('Canvas context not available'));
+        }
+      };
+      img.onerror = () => reject(new Error('Image load failed'));
+      img.src = base64;
+    });
+  }
+
+  removePhoto(): void {
+    this.profilePhoto = null;
+    this.photoFile = null;
+    this.photoError = '';
+    this.saveData();
+  }
+
+  triggerPhotoUpload(): void {
+    const input = document.getElementById('photo-input') as HTMLInputElement;
+    input?.click();
+  }
+
+  sanitizeHtml(html: string): SafeHtml {
+    if (!html) return '';
+    const formatted = this.formatHtmlContent(html);
+    return this.sanitizer.bypassSecurityTrustHtml(formatted);
+  }
+
+  private formatHtmlContent(html: string): string {
+    if (!html) return '';
+
+    let formatted = html.replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '</p><p>');
+
+    if (!formatted.includes('<p>') &&
+      !formatted.includes('<div>') &&
+      !formatted.includes('<ul>') &&
+      !formatted.includes('<ol>')) {
+      formatted = `<div>${formatted}</div>`;
+    }
+
+    return formatted;
+  }
+
+  selectSection(section: SectionKey): void {
+    this.activeSection = section;
+    this.editingSection = null;
+    this.chatHistory = [{
+      role: 'assistant',
+      text: `Edytujesz: ${this.sectionNames[section]}. Co chcesz dodać?`
+    }];
+    this.saveData();
+  }
+
+  getSectionName(key: SectionKey): string {
+    return this.sectionNames[key];
+  }
+
+  isSectionActive(section: SectionKey): boolean {
+    return this.activeSection === section;
+  }
+
+  isSectionCompleted(section: SectionKey): boolean {
+    return this.sections[section]?.trim().length > 0;
+  }
+
+  startEditing(section: SectionKey, event: Event): void {
+    event.stopPropagation();
+    this.editingSection = section;
+    this.activeSection = section;
+
+    setTimeout(() => {
+      const editableDiv = document.querySelector('.section-editor-contenteditable') as HTMLElement;
+      if (editableDiv) {
+        editableDiv.innerHTML = this.sections[section];
+        editableDiv.focus();
+        this.moveCursorToEnd(editableDiv);
+      }
+    }, 10);
+  }
+
+  private moveCursorToEnd(element: HTMLElement): void {
+    const range = document.createRange();
+    const selection = window.getSelection();
+
+    if (element.childNodes.length > 0) {
+      const lastNode = this.getLastTextNode(element);
+      if (lastNode) {
+        const length = lastNode.textContent?.length || 0;
+        range.setStart(lastNode, length);
+        range.collapse(true);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+      }
+    }
+  }
+
+  private getLastTextNode(node: Node): Node {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node;
+    }
+
+    const children = node.childNodes;
+    for (let i = children.length - 1; i >= 0; i--) {
+      const result = this.getLastTextNode(children[i]);
+      if (result.nodeType === Node.TEXT_NODE) {
+        return result;
+      }
+    }
+
+    return node;
+  }
+
+  stopEditing(): void {
+    this.editingSection = null;
+    this.saveData();
+  }
+
+  isEditing(section: SectionKey): boolean {
+    return this.editingSection === section;
+  }
+
+  onContentEditableInput(section: SectionKey, event: Event): void {
+    const target = event.target as HTMLElement;
+    this.sections[section] = target.innerHTML;
+  }
+
+  onContentEditableBlur(section: SectionKey, event: Event): void {
+    const target = event.target as HTMLElement;
+    this.sections[section] = target.innerHTML;
+    this.saveData();
+  }
+
+  onPreviewDragStart(event: DragEvent, index: number): void {
+    this.draggedSectionIndex = index;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/html', '');
+    }
+  }
+
+  onPreviewDragOver(event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  onPreviewDrop(event: DragEvent, dropIndex: number): void {
+    event.preventDefault();
+
+    if (this.draggedSectionIndex === null || this.draggedSectionIndex === dropIndex) {
+      this.draggedSectionIndex = null;
+      return;
+    }
+
+    const newOrder = [...this.sectionKeys];
+    const draggedItem = newOrder[this.draggedSectionIndex];
+
+    newOrder.splice(this.draggedSectionIndex, 1);
+    newOrder.splice(dropIndex, 0, draggedItem);
+
+    this.sectionKeys = newOrder;
+    this.draggedSectionIndex = null;
+    this.saveData();
+  }
+
+  send(): void {
+    if (!this.userInput.trim() || this.loading) return;
+
+    const message = this.userInput.trim();
+    this.chatHistory.push({ role: 'user', text: message });
+    this.userInput = '';
+    this.loading = true;
+
+    const request: SectionRequest = {
+      sectionType: this.activeSection,
+      currentText: this.sections[this.activeSection],
+      userMessage: message,
+      language: 'PL'
+    };
+
+    this.aiService.generate(request).subscribe({
+      next: (response: SectionResponse) => {
+        let formattedContent = response.content;
+
+        if (!formattedContent.includes('<') && !formattedContent.includes('>')) {
+          formattedContent = formattedContent
+            .split('\n\n')
+            .map(para => `<p>${para.replace(/\n/g, '<br>')}</p>`)
+            .join('');
+        } else {
+          formattedContent = formattedContent.replace(/\n/g, '<br>');
+        }
+
+        this.sections[this.activeSection] = formattedContent;
+        this.chatHistory.push({ role: 'assistant', text: response.message });
+        this.loading = false;
+        this.saveData();
+        this.scrollToBottom();
       },
-      error: (err) => {
-        this.isLoading = false;
+      error: (err: HttpErrorResponse) => {
+        let errorMessage = 'Wystąpił błąd. Spróbuj ponownie.';
 
         if (err.status === 401 || err.status === 403) {
-          this.addAiMessage('Sesja wygasła. Zaloguj się ponownie.');
-          this.router.navigate(['/login']);
-          return;
+          errorMessage = 'Sesja wygasła. Zaloguj się ponownie.';
+          setTimeout(() => this.router.navigate(['/login']), 2000);
         }
 
-        this.addAiMessage('Przepraszam, wystąpił błąd połączenia. Spróbuj ponownie za chwilę.');
-        console.error('Error:', err);
+        this.chatHistory.push({
+          role: 'assistant',
+          text: errorMessage
+        });
+        this.loading = false;
+        this.scrollToBottom();
       }
     });
   }
 
-  // ===== AKCJE NA SEKCJACH =====
-
-  acceptSection(msg: ChatMessage): void {
-    if (!msg.sectionType || !msg.generatedData) return;
-
-    (this.cvDraft as any)[msg.sectionType] = msg.generatedData;
-    this.goToNextStep();
+  goBack(): void {
+    this.saveData();
+    this.router.navigate(['/']);
   }
 
-  retrySection(): void {
-    this.addSystemMessage(`Spróbujmy jeszcze raz. Opisz swoje ${this.getStepLabel(this.currentStep)} w inny sposób.`);
-  }
+  finishCv(): void {
+    const cvData: CvData = {
+      personalInfo: this.sections.personalInfo,
+      summary: this.sections.summary,
+      experience: this.sections.experience,
+      education: this.sections.education,
+      skills: this.sections.skills,
+      projects: this.sections.projects,
+      interests: this.sections.interests,
+      sectionOrder: [...this.sectionKeys],
+      profilePhoto: this.profilePhoto
+    };
 
-  skipSection(): void {
-    this.addSystemMessage(`Pomijam sekcję "${this.getStepLabel(this.currentStep)}". Możesz ją uzupełnić później.`);
-    this.goToNextStep();
-  }
+    const cvDraft: CvDraft = {
+      sections: { ...this.sections },
+      sectionOrder: [...this.sectionKeys],
+      profilePhoto: this.profilePhoto,
+      activeSection: this.activeSection,
+      lastModified: Date.now()
+    };
 
-  // ===== NAWIGACJA - NOWE METODY =====
-
-  goToNextStep(): void {
-    const currentIndex = this.steps.indexOf(this.currentStep);
-
-    if (currentIndex < this.steps.length - 1) {
-      this.currentStep = this.steps[currentIndex + 1];
-      this.currentStepIndex = currentIndex + 1;
-
-      const hints = this.getStepHint(this.currentStep);
-      this.addSystemMessage(`Świetnie! ✨ Teraz przejdźmy do: ${this.getStepLabel(this.currentStep)}. ${hints}`);
-    } else {
-      this.addSystemMessage('🎉 Gratulacje! Twoje CV jest gotowe. Kliknij "Zakończ i zobacz CV" aby zobaczyć efekt końcowy.');
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(cvDraft));
+    } catch (e) {
+      console.error('Błąd zapisu:', e);
     }
-  }
 
-  goToPreviousStep(): void {
-    const currentIndex = this.steps.indexOf(this.currentStep);
-
-    if (currentIndex > 0) {
-      this.currentStep = this.steps[currentIndex - 1];
-      this.currentStepIndex = currentIndex - 1;
-
-      this.addSystemMessage(`Wróciłeś do sekcji: ${this.getStepLabel(this.currentStep)}`);
-    }
-  }
-
-  jumpToStep(step: string): void {
-    const index = this.steps.indexOf(step);
-
-    if (index !== -1) {
-      this.currentStep = step;
-      this.currentStepIndex = index;
-      this.addSystemMessage(`Przeszedłeś do sekcji: ${this.getStepLabel(step)}. ${this.getStepHint(step)}`);
-    }
-  }
-
-  canGoNext(): boolean {
-    return this.currentStepIndex < this.steps.length - 1;
-  }
-
-  canGoPrevious(): boolean {
-    return this.currentStepIndex > 0;
-  }
-
-  isLastStep(): boolean {
-    return this.currentStepIndex === this.steps.length - 1;
-  }
-
-  // ===== STAN CV =====
-
-  hasAnyData(): boolean {
-    return Object.keys(this.cvDraft).some(key => {
-      const value = (this.cvDraft as any)[key];
-      if (Array.isArray(value)) return value.length > 0;
-      return value !== undefined && value !== null;
+    this.router.navigate(['/cv-preview'], {
+      state: { cv: cvData }
     });
   }
 
   canFinish(): boolean {
-    return this.cvDraft.personalInfo !== undefined;
+    return this.sections.personalInfo?.trim().length > 0;
   }
 
-  finishCv(): void {
-    this.cvDraft.sectionOrder = this.steps.filter(step => this.isStepCompleted(step));
-
-    console.log('Finalne CV:', this.cvDraft);
-
-    localStorage.setItem('cvDraft', JSON.stringify(this.cvDraft));
-
-    this.router.navigate(['/cv-preview'], {
-      state: { cv: this.cvDraft }
-    });
-  }
-
-  // ===== NAWIGACJA =====
-
-  goBack(): void {
-    this.router.navigate(['/']);
-  }
-
-  // ===== METODY POMOCNICZE DO TYPÓW =====
-
-  isDataArray(data: any): boolean {
-    return Array.isArray(data);
-  }
-
-  isDataObject(data: any): boolean {
-    return typeof data === 'object' && data !== null && !Array.isArray(data);
-  }
-
-  asArray(value: unknown): any[] {
-    return Array.isArray(value) ? value : [];
-  }
-
-  asString(value: unknown): string {
-    if (typeof value === 'string') return value;
-    if (Array.isArray(value)) return value.join(', ');
-    return String(value ?? '');
-  }
-
-  getInterests(): string[] {
-    return this.cvDraft.interests ?? [];
-  }
-
-  // ===== UI HELPERS =====
-
-  private scrollToBottom(): void {
-    setTimeout(() => {
-      const messagesContainer = document.querySelector('.messages-container');
-      if (messagesContainer) {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      }
-    }, 100);
+  hasAnyContent(): boolean {
+    return this.sectionKeys.some(key => this.sections[key]?.trim().length > 0);
   }
 
   onKeyDown(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && event.ctrlKey) {
+    if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      this.sendMessage();
+      this.send();
     }
+  }
+
+  private scrollToBottom(): void {
+    setTimeout(() => {
+      const container = document.querySelector('.messages-container');
+      if (container) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }, 100);
   }
 }

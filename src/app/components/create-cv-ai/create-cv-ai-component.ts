@@ -1,117 +1,80 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClientModule } from '@angular/common/http';
-
-import { NavbarComponent } from '../navbar/navbar-component';
-import { CvPreviewComponent } from './cv-preview/cv-preview-component';
-
-import { CvAiState } from './cv-ai-state.model';
-import { AiCvService } from '../../services/ai-cv-service';
-import { AiCvContent } from '../../models/cv-content.model';
+import { AiCvService, SectionResponse, SectionRequest} from '../../services/ai-cv-service';
 
 @Component({
   selector: 'app-create-cv-ai',
   standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    HttpClientModule,
-    NavbarComponent,
-    CvPreviewComponent
-  ],
+  imports: [CommonModule, FormsModule],
   templateUrl: './create-cv-ai-component.html',
-  styleUrl: './create-cv-ai-component.css'
+  styleUrls: ['./create-cv-ai-component.css']
 })
 export class CreateCvAiComponent {
-
   userInput = '';
+  activeSection = 'summary';
+  loading = false;
 
-  state: CvAiState = {
-    currentStructure: null,
-    previousStructure: null,
-    chatHistory: [],
-    status: 'idle'
+  sections = {
+    personalInfo: '',
+    summary: '',
+    experience: '',
+    education: '',
+    skills: ''
   };
 
-  constructor(private aiCvService: AiCvService) {}
+  chatHistory: Array<{role: string, text: string}> = [
+    { role: 'assistant', text: 'Witaj! Wybierz sekcję i opisz co chcesz dodać.' }
+  ];
 
-  sendPrompt(): void {
-    const trimmedInput = this.userInput.trim();
-    if (!trimmedInput) return;
+  constructor(private aiService: AiCvService) {}
 
-    // 1️⃣ Dodanie wiadomości użytkownika do widoku
-    this.state.chatHistory.push({
-      role: 'user',
-      message: trimmedInput
-    });
+  selectSection(section: string) {
+    this.activeSection = section;
+    this.chatHistory = [
+      { role: 'assistant', text: `Edytujesz: ${this.getSectionName(section)}. Co chcesz dodać?` }
+    ];
+  }
 
-    this.state.status = 'generating';
+  send() {
+    if (!this.userInput.trim() || this.loading) return;
 
-    // Zapamiętujemy prompt i czyścimy pole wpisywania
-    const promptText = trimmedInput;
+    const message = this.userInput.trim();
+    this.chatHistory.push({ role: 'user', text: message });
     this.userInput = '';
+    this.loading = true;
 
-    /**
-     * LOGIKA TRYBU:
-     * Jeśli nie mamy jeszcze wygenerowanego CV (currentStructure === null),
-     * wysyłamy tryb 'GENERATE'. W przeciwnym razie wysyłamy 'IMPROVE'.
-     */
-    const mode = this.state.currentStructure ? 'IMPROVE' : 'GENERATE';
-
-    // 2️⃣ Przygotowanie payloadu dla Backend (Java)
-    const payload = {
-      mode: mode,
-      language: 'PL',
-      prompt: promptText,
-      cv: this.state.currentStructure
+    const request: SectionRequest = {
+      sectionType: this.activeSection,
+      currentText: this.sections[this.activeSection as keyof typeof this.sections],
+      userMessage: message,
+      language: 'PL'
     };
 
-    // 3️⃣ Komunikacja z serwerem
-    this.aiCvService.sendPrompt(payload).subscribe({
-      next: (response) => {
-        // Zapisujemy poprzedni stan (do ewentualnego "cofnij")
-        this.state.previousStructure = this.state.currentStructure;
-
-        // Aktualizujemy podgląd CV nowymi danymi z AI
-        this.state.currentStructure = response.cv;
-
-        // Dodajemy informację od asystenta do chatu
-        const assistantFeedback = mode === 'GENERATE'
-          ? 'Wygenerowałem Twoje CV. Możesz teraz poprosić o konkretne zmiany lub poprawki.'
-          : 'Zaktualizowałem treść Twojego CV zgodnie z prośbą.';
-
-        this.state.chatHistory.push({
-          role: 'assistant',
-          message: assistantFeedback
-        });
-
-        this.state.status = 'reviewing';
+    this.aiService.generate(request).subscribe({
+      next: (response: SectionResponse) => {
+        this.sections[this.activeSection as keyof typeof this.sections] = response.content;
+        this.chatHistory.push({ role: 'assistant', text: response.message });
+        this.loading = false;
       },
       error: (err) => {
-        console.error('Błąd serwisu AI:', err);
-
-        this.state.chatHistory.push({
+        this.chatHistory.push({
           role: 'assistant',
-          message: 'Przepraszam, wystąpił problem techniczny podczas generowania danych. Spróbuj ponownie za chwilę.'
+          text: 'Wystąpił błąd: ' + (err.error?.message || err.message || 'Nieznany błąd')
         });
-
-        this.state.status = 'idle';
+        this.loading = false;
       }
     });
   }
 
-  /**
-   * Prosta funkcja do logowania struktury.
-   * Tutaj możesz później dodać faktyczne generowanie PDF.
-   */
-  downloadCv(): void {
-    if (!this.state.currentStructure) {
-      alert('Najpierw wygeneruj CV!');
-      return;
-    }
-
-    console.log('Eksportowanie danych do PDF:', this.state.currentStructure);
-    // TODO: Wywołanie serwisu PDF
+  getSectionName(key: string): string {
+    const names: any = {
+      personalInfo: 'Dane osobowe',
+      summary: 'O mnie',
+      experience: 'Doświadczenie',
+      education: 'Wykształcenie',
+      skills: 'Umiejętności'
+    };
+    return names[key] || key;
   }
 }

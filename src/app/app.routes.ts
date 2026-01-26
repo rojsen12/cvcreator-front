@@ -14,6 +14,7 @@ import { TicketComponent } from './components/ticket/ticket-component';
 import {ChooseMethodComponent} from './components/choose-method/choose-method-component';
 import {CreateCvAiComponent} from './components/create-cv-ai/create-cv-ai-component';
 import {CvChatComponent} from './components/cv-chat/cv-chat.component';
+import {CvPreviewComponent} from './components/cv-preview-component/cv-preview-component';
 
 export const routes: Routes = [
   { path: 'login', component: LoginComponent },
@@ -30,6 +31,7 @@ export const routes: Routes = [
   { path: 'choose-method', component: ChooseMethodComponent, canActivate: [authGuard] },
   { path: 'create-cv-ai', component: CreateCvAiComponent, canActivate: [authGuard] },
   { path: 'cv-chat', component: CvChatComponent, canActivate: [authGuard] },
+  { path: 'cv-preview', component: CvPreviewComponent, canActivate: [authGuard]},
   { path: '', redirectTo: 'main-page', pathMatch: 'full' },
   { path: '**', redirectTo: 'login' }
 ];

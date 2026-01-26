@@ -646,6 +646,8 @@ body {
 
 .primary-btn {
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  padding: 10px;
+  border-radius: 8px;
   color: white;
   border: none;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);

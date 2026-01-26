@@ -286,7 +286,7 @@
   font-size: 0.85rem;
   color: #64748b;
   background: #f8fafc;
-  padding: 0.4rem 0.8rem;
+  padding: 10px !important;
   border-radius: 8px;
 }
 

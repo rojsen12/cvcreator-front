@@ -73,7 +73,6 @@ export class TicketComponent implements OnInit, OnDestroy {
   categoryOptions = [
     { value: 'all', label: 'Wszystkie kategorie' },
     { value: 'technical', label: 'Techniczne' },
-    { value: 'billing', label: 'Płatności' },
     { value: 'account', label: 'Konto' },
     { value: 'feature', label: 'Funkcje' },
     { value: 'other', label: 'Inne' }
@@ -442,7 +441,6 @@ export class TicketComponent implements OnInit, OnDestroy {
   getCategoryLabel(category: string): string {
     const labels: { [key: string]: string } = {
       'technical': 'Techniczne',
-      'billing': 'Płatności',
       'account': 'Konto',
       'feature': 'Funkcje',
       'other': 'Inne'

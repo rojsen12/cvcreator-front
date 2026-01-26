@@ -1,305 +1,148 @@
-<div class="page-wrapper chat-page">
-
-  <!-- Header -->
-  <div class="chat-header">
-    <button class="back-btn" (click)="goBack()">← Wróć</button>
-    <h1 class="app-title">Kreator CV</h1>
-    <div class="progress-info">
-      {{ getCompletedStepsCount() }} / {{ steps.length }} sekcji
+<div class="cv-chat-container">
+  <div class="header">
+    <div class="header-left">
+      <button class="back-btn" (click)="goBack()">← Powrót</button>
+      <button class="clear-all-btn" (click)="clearAllTextContent()" title="Czyści treść wszystkich sekcji">
+        Wyczyść treść
+      </button>
     </div>
+    <h1>Kreator CV z AI</h1>
+    <button class="finish-btn" (click)="finishCv()" [disabled]="!canFinish()">
+      Zakończ i zobacz CV
+    </button>
   </div>
 
-  <!-- Progress Bar -->
-  <div class="progress-bar">
-    @for (step of steps; track step; let i = $index) {
-      <div
-        class="step"
-        [class.completed]="isStepCompleted(step)"
-        [class.active]="isStepActive(step)"
-        [class.clickable]="true"
-        (click)="jumpToStep(step)"
-        [title]="'Kliknij aby przejść do: ' + getStepLabel(step)"
-      >
-        <span class="step-icon">{{ getStepIcon(step) }}</span>
-        <span class="step-label">{{ getStepLabel(step) }}</span>
+  <div class="main-layout">
+    <div class="sections-sidebar">
+      <div class="photo-section">
+        <h2>📷 Zdjęcie</h2>
+        <input type="file" id="photo-input" accept="image/*" (change)="onPhotoSelect($event)" style="display: none;">
+
+        <div class="photo-upload-area"
+             [class.has-photo]="profilePhoto"
+             [class.dragging]="isDraggingPhoto"
+             (click)="triggerPhotoUpload()"
+             (drop)="onPhotoDrop($event)"
+             (dragover)="onPhotoDragOver($event)"
+             (dragleave)="onPhotoDragLeave($event)">
+
+          <ng-container *ngIf="profilePhoto; else noPhoto">
+            <img [src]="profilePhoto" alt="Podgląd" class="photo-preview">
+            <div class="photo-overlay"><span>Zmień zdjęcie</span></div>
+          </ng-container>
+
+          <ng-template #noPhoto>
+            <div class="photo-placeholder">
+              <span class="photo-icon">📷</span>
+              <span class="photo-text">Przeciągnij lub kliknij</span>
+            </div>
+          </ng-template>
+        </div>
+
+        <button *ngIf="profilePhoto" class="remove-photo-btn" (click)="removePhoto(); $event.stopPropagation()">
+          🗑️ Usuń zdjęcie
+        </button>
       </div>
-    }
-  </div>
 
-  <!-- Main Content -->
-  <div class="chat-content">
+      <div class="sidebar-divider"></div>
 
-    <!-- Messages Area -->
-    <div class="messages-card">
+      <h2>Sekcje CV</h2>
+      <div *ngFor="let section of sectionKeys" class="section-item"
+           [class.active]="isSectionActive(section)"
+           [class.completed]="isSectionCompleted(section)"
+           (click)="selectSection(section)">
+
+        <span class="section-icon">{{ isSectionCompleted(section) ? '✓' : '○' }}</span>
+        <span class="section-name">{{ getSectionName(section) }}</span>
+
+        <button *ngIf="isSectionCompleted(section)" class="mini-delete-btn"
+                (click)="clearSectionByKey(section, $event)" title="Wyczyść sekcję">✕</button>
+      </div>
+    </div>
+
+    <div class="cv-preview">
+      <div class="preview-header">
+        <h2>Podgląd CV</h2>
+        <p class="edit-hint">💡 Kliknij tekst by edytować • ⋮⋮ Przeciągnij by zmienić kolejność</p>
+      </div>
+
+      <div class="preview-content">
+        <div *ngIf="profilePhoto" class="cv-photo-header">
+          <img [src]="profilePhoto" alt="Zdjęcie CV" class="cv-photo">
+        </div>
+
+        <ng-container *ngIf="hasAnyContent(); else emptyState">
+          <div *ngFor="let key of sectionKeys; let i = index"
+               class="preview-section"
+               [class.active]="isSectionActive(key)"
+               [class.editing]="isEditing(key)"
+               [hidden]="!sections[key]"
+               draggable="true"
+               (dragstart)="onPreviewDragStart($event, i)"
+               (drop)="onPreviewDrop($event, i)"
+               (dragover)="onPreviewDragOver($event)">
+
+            <div class="section-header">
+              <div class="header-left-part">
+                <span class="drag-handle">⋮⋮</span>
+                <h3>{{ getSectionName(key) }}</h3>
+              </div>
+              <div class="header-actions">
+                <button class="action-icon-btn delete" (click)="clearSectionByKey(key, $event)" title="Wyczyść treść">🗑️</button>
+                <button class="edit-btn" *ngIf="!isEditing(key)" (click)="startEditing(key, $event)">✏️</button>
+                <button class="save-btn" *ngIf="isEditing(key)" (click)="stopEditing()">✓</button>
+              </div>
+            </div>
+
+            <div class="section-content">
+              <div *ngIf="isEditing(key)" class="section-editor-contenteditable"
+                   contenteditable="true" (input)="onContentEditableInput(key, $event)"
+                   (blur)="onContentEditableBlur(key, $event)"
+                   (keydown.escape)="stopEditing()"></div>
+
+              <div *ngIf="!isEditing(key)" class="section-text html-content"
+                   (click)="startEditing(key, $event)" [innerHTML]="sanitizeHtml(sections[key])"></div>
+            </div>
+          </div>
+        </ng-container>
+
+        <ng-template #emptyState>
+          <div class="empty-state">📝 Twoje CV jest puste. Napisz coś do asystenta!</div>
+        </ng-template>
+      </div>
+    </div>
+
+    <div class="chat-panel">
+      <div class="chat-header">
+        <h3>{{ getSectionName(activeSection) }}</h3>
+        <button class="chat-clear-link" (click)="clearChatHistory()">Wyczyść czat</button>
+      </div>
+
       <div class="messages-container">
-
-        @for (msg of messages; track msg) {
-          <div
-            class="message"
-            [class.user-message]="msg.type === 'user'"
-            [class.ai-message]="msg.type === 'ai'"
-            [class.system-message]="msg.type === 'system'"
-          >
-            <!-- Message Avatar -->
-            @if (msg.type !== 'system') {
-              <div class="message-avatar">
-                @if (msg.type === 'user') {
-                  <span>👤</span>
-                }
-                @if (msg.type === 'ai') {
-                  <span>🤖</span>
-                }
-              </div>
-            }
-
-            <!-- Message Content -->
-            <div class="message-bubble">
-              <p class="message-text">{{ msg.content }}</p>
-
-              <!-- Generated Data Preview -->
-              @if (msg.generatedData) {
-                <div class="generated-preview">
-
-                  <!-- String data (like summary) -->
-                  @if (!isDataArray(msg.generatedData) && !isDataObject(msg.generatedData)) {
-                    <div class="preview-simple">
-                      {{ msg.generatedData }}
-                    </div>
-                  }
-
-                  <!-- Object data (like personalInfo, skills) -->
-                  @if (isDataObject(msg.generatedData) && !isDataArray(msg.generatedData)) {
-                    <div class="preview-object">
-                      @for (item of msg.generatedData | keyvalue; track item.key) {
-                        <div class="preview-item">
-                          <span class="preview-label">{{ item.key }}:</span>
-                          @if (!isDataArray(item.value)) {
-                            <span class="preview-value">{{ asString(item.value) || '-' }}</span>
-                          }
-                          @if (isDataArray(item.value)) {
-                            <span class="preview-value">{{ asArray(item.value).join(', ') || '-' }}</span>
-                          }
-                        </div>
-                      }
-                    </div>
-                  }
-
-                  <!-- Array data (like experience, education) -->
-                  @if (isDataArray(msg.generatedData)) {
-                    <div class="preview-array">
-                      @for (item of asArray(msg.generatedData); track $index; let i = $index) {
-                        <div class="preview-array-item">
-                          <div class="array-item-header">#{{ i + 1 }}</div>
-                          @for (prop of item | keyvalue; track prop.key) {
-                            <div class="preview-item">
-                              <span class="preview-label">{{ prop.key }}:</span>
-                              @if (!isDataArray(prop.value)) {
-                                <span class="preview-value">{{ asString(prop.value) || '-' }}</span>
-                              }
-                              @if (isDataArray(prop.value)) {
-                                <ul class="preview-list">
-                                  @for (val of asArray(prop.value); track val) {
-                                    <li>{{ val }}</li>
-                                  }
-                                </ul>
-                              }
-                            </div>
-                          }
-                        </div>
-                      }
-                    </div>
-                  }
-
-                  <!-- Action Buttons -->
-                  <div class="preview-actions">
-                    <button class="primary-btn accept-btn" (click)="acceptSection(msg)">
-                      ✓ Akceptuj i dalej
-                    </button>
-                    <button class="secondary-btn retry-btn" (click)="retrySection()">
-                      ↻ Popraw
-                    </button>
-                    <button class="secondary-btn skip-btn" (click)="skipSection()">
-                      → Pomiń
-                    </button>
-                  </div>
-                </div>
-              }
-            </div>
-          </div>
-        }
-
-        <!-- Loading Indicator -->
-        @if (isLoading) {
-          <div class="message ai-message">
-            <div class="message-avatar">🤖</div>
-            <div class="message-bubble loading-bubble">
-              <div class="loading-dots">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-            </div>
-          </div>
-        }
-
-      </div>
-
-      <!-- Input Area -->
-      <div class="input-area">
-        <textarea
-          [(ngModel)]="userInput"
-          [placeholder]="'Opisz swoje ' + getStepLabel(currentStep).toLowerCase() + '...'"
-          (keydown)="onKeyDown($event)"
-          [disabled]="isLoading"
-          rows="3"
-        ></textarea>
-        <button
-          class="primary-btn send-btn"
-          (click)="sendMessage()"
-          [disabled]="isLoading || !userInput.trim()"
-        >
-          @if (!isLoading) {
-            <span>Wyślij</span>
-          }
-          @if (isLoading) {
-            <span>...</span>
-          }
-        </button>
-      </div>
-
-      <!-- Navigation Controls -->
-      <div class="navigation-controls">
-        <button
-          class="nav-btn"
-          (click)="goToPreviousStep()"
-          [disabled]="!canGoPrevious()"
-        >
-          ← Poprzednia sekcja
-        </button>
-
-        <div class="current-section">
-          {{ currentStepIndex + 1 }} / {{ steps.length }}: {{ getStepLabel(currentStep) }}
+        <div *ngFor="let msg of chatHistory" [class]="'message ' + msg.role">
+          <div class="bubble">{{ msg.text }}</div>
         </div>
-
-        <button
-          class="nav-btn"
-          (click)="skipSection()"
-          [disabled]="isLastStep()"
-        >
-          Pomiń i dalej →
-        </button>
+        <div *ngIf="loading" class="message assistant">
+          <div class="bubble loading-dots">Generuję...</div>
+        </div>
       </div>
 
-      <div class="input-hint">
-        Ctrl + Enter aby wysłać
+      <div class="input-area">
+        <div class="input-wrapper">
+          <textarea
+            [(ngModel)]="userInput"
+            (keydown)="onKeyDown($event)"
+            placeholder="Opisz co chcesz dodać..."
+            [disabled]="loading">
+          </textarea>
+        </div>
+        <button class="input-clear-btn" (click)="clearActiveSection()" title="Zacznij sekcję od nowa">
+          Wyczyść treść
+        </button>
+        <button class="send-btn" (click)="send()" [disabled]="loading || !userInput.trim()">
+          {{ loading ? '...' : 'Wyślij' }}
+        </button>
       </div>
     </div>
-
-    <!-- CV Preview Sidebar -->
-    @if (hasAnyData()) {
-      <div class="sidebar-card">
-        <h3 class="sidebar-title">📄 Podgląd CV</h3>
-
-        <div class="cv-preview-content">
-
-          <!-- Personal Info -->
-          @if (cvDraft.personalInfo) {
-            <div class="preview-section">
-              <div class="preview-name">
-                {{ cvDraft.personalInfo.firstName }} {{ cvDraft.personalInfo.lastName }}
-              </div>
-              @if (cvDraft.personalInfo.email) {
-                <div class="preview-contact">{{ cvDraft.personalInfo.email }}</div>
-              }
-              @if (cvDraft.personalInfo.phone) {
-                <div class="preview-contact">{{ cvDraft.personalInfo.phone }}</div>
-              }
-              @if (cvDraft.personalInfo.city) {
-                <div class="preview-contact">
-                  {{ cvDraft.personalInfo.city }}
-                  @if (cvDraft.personalInfo.country) {
-                    <span>, {{ cvDraft.personalInfo.country }}</span>
-                  }
-                </div>
-              }
-            </div>
-          }
-
-          <!-- Summary -->
-          @if (cvDraft.summary) {
-            <div class="preview-section">
-              <div class="preview-section-title">Podsumowanie</div>
-              <p class="preview-summary">{{ cvDraft.summary }}</p>
-            </div>
-          }
-
-          <!-- Experience -->
-          @if (cvDraft.experience?.length) {
-            <div class="preview-section">
-              <div class="preview-section-title">Doświadczenie</div>
-              @for (exp of cvDraft.experience; track exp) {
-                <div class="preview-item-small">
-                  <strong>{{ exp.title }}</strong> @ {{ exp.company }}
-                </div>
-              }
-            </div>
-          }
-
-          <!-- Education -->
-          @if (cvDraft.education?.length) {
-            <div class="preview-section">
-              <div class="preview-section-title">Wykształcenie</div>
-              @for (edu of cvDraft.education; track edu) {
-                <div class="preview-item-small">
-                  {{ edu.degree }} - {{ edu.university }}
-                </div>
-              }
-            </div>
-          }
-
-          <!-- Skills -->
-          @if (cvDraft.skills?.technical?.length || cvDraft.skills?.soft?.length) {
-            <div class="preview-section">
-              <div class="preview-section-title">Umiejętności</div>
-              @if (cvDraft.skills?.technical?.length) {
-                <div class="preview-skills">
-                  {{ cvDraft.skills.technical.slice(0, 5).join(', ') }}
-                  @if (cvDraft.skills.technical.length > 5) {
-                    <span>...</span>
-                  }
-                </div>
-              }
-            </div>
-          }
-
-          <!-- Projects -->
-          @if (cvDraft.projects?.length) {
-            <div class="preview-section">
-              <div class="preview-section-title">Projekty</div>
-              @for (proj of cvDraft.projects; track proj) {
-                <div class="preview-item-small">{{ proj.name }}</div>
-              }
-            </div>
-          }
-
-          <!-- Interests -->
-          @if (getInterests().length > 0) {
-            <div class="preview-section">
-              <div class="preview-section-title">Zainteresowania</div>
-              <div class="preview-skills">{{ getInterests().join(', ') }}</div>
-            </div>
-          }
-
-        </div>
-
-        <!-- Finish Button -->
-        @if (canFinish()) {
-          <button class="primary-btn finish-btn" (click)="finishCv()">
-            🎉 Zakończ i zobacz CV
-          </button>
-        }
-      </div>
-    }
-
   </div>
 </div>

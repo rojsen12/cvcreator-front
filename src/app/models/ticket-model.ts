@@ -27,29 +27,3 @@ export type TicketCategory = 'technical' | 'billing' | 'account' | 'feature' | '
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
 export type TicketStatus = 'open' | 'in_progress' | 'waiting' | 'resolved' | 'closed';
 
-export interface TicketStats {
-  total: number;
-  open: number;
-  inProgress: number;
-  waiting: number;
-  resolved: number;
-  closed: number;
-  avgResponseTime: string;
-  todayNew: number;
-}
-
-export interface CreateTicketDTO {
-  subject: string;
-  message: string;
-  category: TicketCategory;
-  priority: TicketPriority;
-}
-
-export interface TicketFilter {
-  status?: TicketStatus | 'all';
-  priority?: TicketPriority | 'all';
-  category?: TicketCategory | 'all';
-  search?: string;
-  dateFrom?: Date;
-  dateTo?: Date;
-}
