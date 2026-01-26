@@ -1,0 +1,21 @@
+body {
+  overflow: hidden;
+}
+
+:host ::ng-deep .admin-badge .p-menuitem-text {
+  color: #3b82f6 !important;
+  font-weight: 600 !important;
+}
+
+:host ::ng-deep .admin-badge .p-menuitem-icon {
+  color: #3b82f6 !important;
+}
+
+:host ::ng-deep .p-menubar .p-menuitem:has([href="/ticket"]) .p-menuitem-text {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+:host ::ng-deep .p-menubar .p-menuitem:has([href="/ticket"]) .p-menuitem-icon {
+  color: #3b82f6;
+}

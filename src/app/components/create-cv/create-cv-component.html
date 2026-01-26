@@ -1,0 +1,47 @@
+<div class="navbar-container">
+  <app-navbar></app-navbar>
+</div>
+
+<div class="page-wrapper">
+  <div class="header-section">
+    <button class="back-btn" (click)="goBack()">
+      <i class="pi pi-arrow-left"></i> Powrót
+    </button>
+    <h1 class="page-title">Wybierz szablon CV</h1>
+    <p class="page-subtitle">Wybierz szablon, który najlepiej pasuje do Twojego stylu</p>
+  </div>
+
+  <div class="templates-container">
+    <div class="templates-grid">
+      <div
+        *ngFor="let template of templates"
+        class="template-card"
+        [class.selected]="selectedTemplate === template.id"
+        (click)="selectTemplate(template.id)">
+
+        <div class="template-preview" [style.border-color]="selectedTemplate === template.id ? template.color : '#e2e8f0'">
+          <div class="preview-placeholder" [style.background]="'linear-gradient(135deg, ' + template.color + '20, ' + template.color + '05)'">
+            <i class="pi pi-file" [style.color]="template.color"></i>
+          </div>
+          <div class="selected-badge" *ngIf="selectedTemplate === template.id" [style.background]="template.color">
+            <i class="pi pi-check"></i>
+          </div>
+        </div>
+
+        <div class="template-info">
+          <h3>{{ template.name }}</h3>
+          <p>{{ template.description }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="action-section">
+      <button
+        class="primary-btn p-button p-component"
+        [disabled]="!selectedTemplate"
+        (click)="continueToEdit()">
+        Kontynuuj <i class="pi pi-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+</div>

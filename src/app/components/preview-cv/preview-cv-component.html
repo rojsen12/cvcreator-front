@@ -1,0 +1,157 @@
+<div class="navbar-container">
+  <app-navbar></app-navbar>
+</div>
+
+<div class="preview-wrapper">
+  <div *ngIf="loading" class="loading-state">
+    <div class="spinner"></div>
+    <p>Ładowanie CV...</p>
+  </div>
+
+  <div *ngIf="error && !loading" class="error-state">
+    <i class="pi pi-exclamation-triangle"></i>
+    <h2>{{ error }}</h2>
+    <button class="primary-btn" (click)="goBack()">
+      <i class="pi pi-arrow-left"></i> Powrót
+    </button>
+  </div>
+
+  <div *ngIf="cv && !loading && !error" class="preview-container">
+
+    <div class="action-bar">
+      <button class="secondary-btn" (click)="goBack()">
+        <i class="pi pi-arrow-left"></i> Powrót
+      </button>
+
+      <div class="action-group">
+        <button class="edit-btn" (click)="editCV()">
+          <i class="pi pi-pencil"></i> Edytuj
+        </button>
+        <button class="download-btn" (click)="downloadPDF()">
+          <i class="pi pi-download"></i> Pobierz PDF
+        </button>
+      </div>
+    </div>
+
+    <div class="cv-paper" [ngClass]="'template-' + cv.templateType">
+
+      <div class="cv-header">
+        <div class="header-content">
+          <div class="profile-section">
+            <div class="profile-image" *ngIf="cv.profilePicture">
+              <img [src]="cv.profilePicture" [alt]="getFullName()">
+            </div>
+            <div class="profile-image placeholder" *ngIf="!cv.profilePicture">
+              <i class="pi pi-user"></i>
+            </div>
+          </div>
+
+          <div class="header-info">
+            <h1 class="full-name">{{ getFullName() }}</h1>
+            <div class="contact-info">
+              <div class="contact-item" *ngIf="cv.email">
+                <i class="pi pi-envelope"></i>
+                <span>{{ cv.email }}</span>
+              </div>
+              <div class="contact-item" *ngIf="cv.phone">
+                <i class="pi pi-phone"></i>
+                <span>{{ cv.phone }}</span>
+              </div>
+              <div class="contact-item" *ngIf="cv.address">
+                <i class="pi pi-map-marker"></i>
+                <span>{{ cv.address }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cv-body">
+
+        <div class="cv-section" *ngIf="cv.summary">
+          <h2 class="section-title">
+            <i class="pi pi-user"></i>
+            O mnie
+          </h2>
+          <p class="summary-text">{{ cv.summary }}</p>
+        </div>
+
+        <div class="cv-section" *ngIf="cv.experiences && cv.experiences.length > 0">
+          <h2 class="section-title">
+            <i class="pi pi-briefcase"></i>
+            Doświadczenie zawodowe
+          </h2>
+          <div class="experience-list">
+            <div class="experience-item" *ngFor="let exp of cv.experiences">
+              <div class="item-header">
+                <div>
+                  <h3 class="position">{{ exp.position }}</h3>
+                  <p class="company">{{ exp.company }}</p>
+                </div>
+                <div class="date-range">
+                  <span>{{ formatDate(exp.startDate) }}</span>
+                  <span class="separator">-</span>
+                  <span>{{ formatDate(exp.endDate) }}</span>
+                </div>
+              </div>
+              <p class="location" *ngIf="exp.location">
+                <i class="pi pi-map-marker"></i> {{ exp.location }}
+              </p>
+              <p class="description" *ngIf="exp.description">{{ exp.description }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="cv-section" *ngIf="cv.educations && cv.educations.length > 0">
+          <h2 class="section-title">
+            <i class="pi pi-book"></i>
+            Edukacja
+          </h2>
+          <div class="education-list">
+            <div class="education-item" *ngFor="let edu of cv.educations">
+              <div class="item-header">
+                <div>
+                  <h3 class="degree">{{ edu.degree }}</h3>
+                  <p class="institution">{{ edu.institution }}</p>
+                </div>
+                <div class="date-range">
+                  <span>{{ formatDate(edu.startDate) }}</span>
+                  <span class="separator">-</span>
+                  <span>{{ formatDate(edu.endDate) }}</span>
+                </div>
+              </div>
+              <p class="location" *ngIf="edu.location">
+                <i class="pi pi-map-marker"></i> {{ edu.location }}
+              </p>
+              <p class="description" *ngIf="edu.description">{{ edu.description }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="cv-section" *ngIf="cv.skills && cv.skills.length > 0">
+          <h2 class="section-title">
+            <i class="pi pi-cog"></i>
+            Umiejętności
+          </h2>
+          <div class="skills-grid">
+            <span class="skill-tag" *ngFor="let skill of cv.skills">{{ skill }}</span>
+          </div>
+        </div>
+
+        <div class="cv-section" *ngIf="cv.languages && cv.languages.length > 0">
+          <h2 class="section-title">
+            <i class="pi pi-globe"></i>
+            Języki
+          </h2>
+          <div class="languages-list">
+            <div class="language-item" *ngFor="let lang of cv.languages">
+              <span class="language-name">{{ lang.name }}</span>
+              <span class="language-level">{{ lang.level }}</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

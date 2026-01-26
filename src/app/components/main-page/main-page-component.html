@@ -1,1 +1,22 @@
-<p>main-page-component works!</p>
+<div class="navbar-container">
+  <app-navbar></app-navbar>
+</div>
+
+<div class="page-wrapper">
+  <h1 class="app-title">Witaj w Panelu Głównym</h1>
+
+  <div class="main-card">
+    <p class="welcome-text">
+      Stwórz swoje CV już dzisiaj!
+    </p>
+
+    <div class="action-buttons">
+      <button class="primary-btn p-button p-component" (click)="createCV()">
+        Wybierz metodę tworzenia CV
+      </button>
+      <button class="secondary-btn p-button p-component" (click)="viewMyCVs()">
+        Moje CV
+      </button>
+    </div>
+  </div>
+</div>

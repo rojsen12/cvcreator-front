@@ -1,0 +1,148 @@
+<div class="cv-chat-container">
+  <div class="header">
+    <div class="header-left">
+      <button class="back-btn" (click)="goBack()">← Powrót</button>
+      <button class="clear-all-btn" (click)="clearAllTextContent()" title="Czyści treść wszystkich sekcji">
+        Wyczyść treść
+      </button>
+    </div>
+    <h1>Kreator CV z AI</h1>
+    <button class="finish-btn" (click)="finishCv()" [disabled]="!canFinish()">
+      Zakończ i zobacz CV
+    </button>
+  </div>
+
+  <div class="main-layout">
+    <div class="sections-sidebar">
+      <div class="photo-section">
+        <h2>📷 Zdjęcie</h2>
+        <input type="file" id="photo-input" accept="image/*" (change)="onPhotoSelect($event)" style="display: none;">
+
+        <div class="photo-upload-area"
+             [class.has-photo]="profilePhoto"
+             [class.dragging]="isDraggingPhoto"
+             (click)="triggerPhotoUpload()"
+             (drop)="onPhotoDrop($event)"
+             (dragover)="onPhotoDragOver($event)"
+             (dragleave)="onPhotoDragLeave($event)">
+
+          <ng-container *ngIf="profilePhoto; else noPhoto">
+            <img [src]="profilePhoto" alt="Podgląd" class="photo-preview">
+            <div class="photo-overlay"><span>Zmień zdjęcie</span></div>
+          </ng-container>
+
+          <ng-template #noPhoto>
+            <div class="photo-placeholder">
+              <span class="photo-icon">📷</span>
+              <span class="photo-text">Przeciągnij lub kliknij</span>
+            </div>
+          </ng-template>
+        </div>
+
+        <button *ngIf="profilePhoto" class="remove-photo-btn" (click)="removePhoto(); $event.stopPropagation()">
+          🗑️ Usuń zdjęcie
+        </button>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <h2>Sekcje CV</h2>
+      <div *ngFor="let section of sectionKeys" class="section-item"
+           [class.active]="isSectionActive(section)"
+           [class.completed]="isSectionCompleted(section)"
+           (click)="selectSection(section)">
+
+        <span class="section-icon">{{ isSectionCompleted(section) ? '✓' : '○' }}</span>
+        <span class="section-name">{{ getSectionName(section) }}</span>
+
+        <button *ngIf="isSectionCompleted(section)" class="mini-delete-btn"
+                (click)="clearSectionByKey(section, $event)" title="Wyczyść sekcję">✕</button>
+      </div>
+    </div>
+
+    <div class="cv-preview">
+      <div class="preview-header">
+        <h2>Podgląd CV</h2>
+        <p class="edit-hint">💡 Kliknij tekst by edytować • ⋮⋮ Przeciągnij by zmienić kolejność</p>
+      </div>
+
+      <div class="preview-content">
+        <div *ngIf="profilePhoto" class="cv-photo-header">
+          <img [src]="profilePhoto" alt="Zdjęcie CV" class="cv-photo">
+        </div>
+
+        <ng-container *ngIf="hasAnyContent(); else emptyState">
+          <div *ngFor="let key of sectionKeys; let i = index"
+               class="preview-section"
+               [class.active]="isSectionActive(key)"
+               [class.editing]="isEditing(key)"
+               [hidden]="!sections[key]"
+               draggable="true"
+               (dragstart)="onPreviewDragStart($event, i)"
+               (drop)="onPreviewDrop($event, i)"
+               (dragover)="onPreviewDragOver($event)">
+
+            <div class="section-header">
+              <div class="header-left-part">
+                <span class="drag-handle">⋮⋮</span>
+                <h3>{{ getSectionName(key) }}</h3>
+              </div>
+              <div class="header-actions">
+                <button class="action-icon-btn delete" (click)="clearSectionByKey(key, $event)" title="Wyczyść treść">🗑️</button>
+                <button class="edit-btn" *ngIf="!isEditing(key)" (click)="startEditing(key, $event)">✏️</button>
+                <button class="save-btn" *ngIf="isEditing(key)" (click)="stopEditing()">✓</button>
+              </div>
+            </div>
+
+            <div class="section-content">
+              <div *ngIf="isEditing(key)" class="section-editor-contenteditable"
+                   contenteditable="true" (input)="onContentEditableInput(key, $event)"
+                   (blur)="onContentEditableBlur(key, $event)"
+                   (keydown.escape)="stopEditing()"></div>
+
+              <div *ngIf="!isEditing(key)" class="section-text html-content"
+                   (click)="startEditing(key, $event)" [innerHTML]="sanitizeHtml(sections[key])"></div>
+            </div>
+          </div>
+        </ng-container>
+
+        <ng-template #emptyState>
+          <div class="empty-state">📝 Twoje CV jest puste. Napisz coś do asystenta!</div>
+        </ng-template>
+      </div>
+    </div>
+
+    <div class="chat-panel">
+      <div class="chat-header">
+        <h3>{{ getSectionName(activeSection) }}</h3>
+        <button class="chat-clear-link" (click)="clearChatHistory()">Wyczyść czat</button>
+      </div>
+
+      <div class="messages-container">
+        <div *ngFor="let msg of chatHistory" [class]="'message ' + msg.role">
+          <div class="bubble">{{ msg.text }}</div>
+        </div>
+        <div *ngIf="loading" class="message assistant">
+          <div class="bubble loading-dots">Generuję...</div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-wrapper">
+          <textarea
+            [(ngModel)]="userInput"
+            (keydown)="onKeyDown($event)"
+            placeholder="Opisz co chcesz dodać..."
+            [disabled]="loading">
+          </textarea>
+        </div>
+        <button class="input-clear-btn" (click)="clearActiveSection()" title="Zacznij sekcję od nowa">
+          Wyczyść treść
+        </button>
+        <button class="send-btn" (click)="send()" [disabled]="loading || !userInput.trim()">
+          {{ loading ? '...' : 'Wyślij' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

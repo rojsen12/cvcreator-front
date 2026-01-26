@@ -42,7 +42,7 @@ export class LoginComponent {
     this.errorMsg = '';
 
     this.api.login(this.loginForm.value).subscribe({
-      next: (res: { token: string }) => {
+      next: (response) => {
         this.router.navigate(['/main-page']);
       },
       error: () => {

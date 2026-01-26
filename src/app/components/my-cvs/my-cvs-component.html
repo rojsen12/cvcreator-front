@@ -1,0 +1,116 @@
+<div class="navbar-container">
+  <app-navbar></app-navbar>
+</div>
+
+<div class="my-cvs-wrapper">
+  <div class="header-section">
+    <div class="header-content">
+      <div>
+        <h1 class="page-title">Moje CV</h1>
+        <p class="page-subtitle">Zarządzaj swoimi CV w jednym miejscu</p>
+      </div>
+      <button class="create-btn" (click)="createNewCV()">
+        <i class="pi pi-plus"></i> Stwórz nowe CV
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="loading" class="loading-state">
+    <div class="spinner"></div>
+    <p>Ładowanie CV...</p>
+  </div>
+
+  <div *ngIf="error && !loading" class="error-state">
+    <i class="pi pi-exclamation-triangle"></i>
+    <h2>{{ error }}</h2>
+    <button class="primary-btn" (click)="loadCVs()">
+      <i class="pi pi-refresh"></i> Spróbuj ponownie
+    </button>
+  </div>
+
+  <div *ngIf="!loading && !error && cvs.length === 0" class="empty-state">
+    <div class="empty-icon">
+      <i class="pi pi-file"></i>
+    </div>
+    <h2>Nie masz jeszcze żadnego CV</h2>
+    <p>Stwórz swoje pierwsze CV i rozpocznij swoją karierę!</p>
+    <button class="primary-btn large" (click)="createNewCV()">
+      <i class="pi pi-plus"></i> Stwórz pierwsze CV
+    </button>
+  </div>
+
+  <div *ngIf="!loading && !error && cvs.length > 0" class="cvs-container">
+    <div class="cvs-grid">
+      <div
+        *ngFor="let cv of cvs"
+        class="cv-card"
+        [class.deleting]="deletingId === cv.id"
+        (click)="viewCV(cv.id)">
+
+        <div class="card-header" [style.background]="getTemplateGradient(cv.templateType)">
+          <div class="template-badge">{{ cv.templateType }}</div>
+          <div class="card-preview">
+            <div class="preview-icon">
+              <i class="pi pi-file"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body">
+          <h3 class="cv-name">{{ getFullName(cv) }}</h3>
+          <p class="cv-email">{{ cv.email }}</p>
+
+          <div class="cv-stats">
+            <div class="stat-item" *ngIf="getExperienceCount(cv) >= 0">
+              <i class="pi pi-briefcase"></i>
+              <span>{{ getExperienceCount(cv) }}</span>
+            </div>
+            <div class="stat-item" *ngIf="getEducationCount(cv) >= 0">
+              <i class="pi pi-book"></i>
+              <span>{{ getEducationCount(cv) }}</span>
+            </div>
+            <div class="stat-item" *ngIf="getSkillsCount(cv) >= 0">
+              <i class="pi pi-cog"></i>
+              <span>{{ getSkillsCount(cv) }}</span>
+            </div>
+          </div>
+
+          <div class="cv-meta">
+            <span class="meta-item">
+              <i class="pi pi-calendar"></i>
+              {{ formatDate(cv.updatedAt || cv.createdAt) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="card-actions">
+          <button
+            class="action-btn view-btn"
+            (click)="viewCV(cv.id)"
+            title="Podgląd">
+            <i class="pi pi-eye"></i>
+          </button>
+          <button
+            class="action-btn edit-btn"
+            (click)="editCV(cv.id); $event.stopPropagation()"
+            title="Edytuj">
+            <i class="pi pi-pencil"></i>
+          </button>
+          <button
+            class="action-btn download-btn"
+            (click)="downloadPDF(cv, $event)"
+            title="Pobierz PDF">
+            <i class="pi pi-download"></i>
+          </button>
+          <button
+            class="action-btn delete-btn"
+            (click)="deleteCV(cv.id, $event)"
+            [disabled]="deletingId === cv.id"
+            title="Usuń">
+            <i class="pi" [ngClass]="deletingId === cv.id ? 'pi-spin pi-spinner' : 'pi-trash'"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

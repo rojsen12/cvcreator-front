@@ -1,0 +1,459 @@
+<div class="navbar-container">
+  <app-navbar></app-navbar>
+</div>
+
+<div class="wizard-wrapper">
+  <div class="wizard-progress">
+    <div class="progress-bar">
+      <div class="progress-fill" [style.width.%]="progressPercentage"></div>
+    </div>
+
+    <div class="steps-indicator">
+      <div
+        *ngFor="let section of sections; let i = index"
+        class="step"
+        [class.active]="currentStep === i"
+        [class.completed]="currentStep > i"
+        [class.clickable]="i <= currentStep || canProceedToStep(i)"
+        (click)="goToStep(i)">
+        <div class="step-circle">
+          <i *ngIf="currentStep > i" class="pi pi-check"></i>
+          <span *ngIf="currentStep <= i">{{ i + 1 }}</span>
+        </div>
+        <span class="step-label">{{ section.name }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="wizard-content">
+    <div class="content-header">
+      <div class="header-info">
+        <h1>{{ isEditMode ? 'Edytuj CV' : 'Utwórz CV' }}</h1>
+        <p class="step-info">Krok {{ currentStep + 1 }} z {{ totalSteps }}</p>
+      </div>
+      <div class="template-badge" *ngIf="selectedTemplate">{{ selectedTemplate }}</div>
+    </div>
+
+    <div class="error-banner" *ngIf="saveError">
+      <i class="pi pi-exclamation-circle"></i>
+      {{ saveError }}
+    </div>
+
+    <form [formGroup]="cvForm" (ngSubmit)="onSubmit()">
+
+      <div class="form-section" *ngIf="currentStep === 0">
+        <div class="section-title">
+          <i class="pi pi-user"></i>
+          <h2>Dane osobowe</h2>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Imię <span class="required">*</span></label>
+            <input type="text" formControlName="firstName" class="form-input" placeholder="Jan">
+            <small class="error-msg" *ngIf="cvForm.get('firstName')?.invalid && cvForm.get('firstName')?.touched">
+              Pole wymagane
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label>Nazwisko <span class="required">*</span></label>
+            <input type="text" formControlName="lastName" class="form-input" placeholder="Kowalski">
+            <small class="error-msg" *ngIf="cvForm.get('lastName')?.invalid && cvForm.get('lastName')?.touched">
+              Pole wymagane
+            </small>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Email <span class="required">*</span></label>
+            <input type="email" formControlName="email" class="form-input" placeholder="jan.kowalski@email.com">
+            <small class="error-msg" *ngIf="cvForm.get('email')?.invalid && cvForm.get('email')?.touched">
+              Podaj poprawny adres email
+            </small>
+          </div>
+
+          <div class="form-group">
+            <label>Telefon <span class="required">*</span></label>
+            <input type="tel" formControlName="phone" class="form-input" placeholder="+48 123 456 789">
+            <small class="error-msg" *ngIf="cvForm.get('phone')?.invalid && cvForm.get('phone')?.touched">
+              Pole wymagane
+            </small>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Adres</label>
+          <input type="text" formControlName="address" class="form-input" placeholder="Warszawa, Polska">
+        </div>
+
+        <div class="form-group">
+          <label>Zdjęcie profilowe (URL)</label>
+          <input type="text" formControlName="profilePicture" class="form-input" placeholder="https://...">
+        </div>
+
+        <div class="form-group">
+          <label>O mnie</label>
+          <textarea formControlName="summary" class="form-textarea" rows="5" placeholder="Opisz siebie, swoje cele zawodowe..."></textarea>
+        </div>
+      </div>
+
+      <div class="form-section" *ngIf="currentStep === 1">
+        <div class="section-title">
+          <i class="pi pi-briefcase"></i>
+          <h2>Doświadczenie zawodowe</h2>
+          <button type="button" class="add-btn" (click)="addExperience()">
+            <i class="pi pi-plus"></i> Dodaj
+          </button>
+        </div>
+
+        <div formArrayName="experiences">
+          <div *ngFor="let exp of experiences.controls; let i = index" class="dynamic-card">
+            <div [formGroupName]="i">
+              <div class="card-header">
+                <span class="card-number">{{ i + 1 }}</span>
+                <button type="button" class="remove-btn" (click)="removeExperience(i)">
+                  <i class="pi pi-trash"></i> Usuń
+                </button>
+              </div>
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Stanowisko <span class="required">*</span></label>
+                  <input type="text" formControlName="position" class="form-input" placeholder="Frontend Developer">
+                </div>
+
+                <div class="form-group">
+                  <label>Firma <span class="required">*</span></label>
+                  <input type="text" formControlName="company" class="form-input" placeholder="Tech Company">
+                </div>
+              </div>
+
+              <div class="form-grid grid-3">
+                <div class="form-group">
+                  <label>Lokalizacja</label>
+                  <input type="text" formControlName="location" class="form-input" placeholder="Warszawa">
+                </div>
+
+                <div class="form-group">
+                  <label>Od <span class="required">*</span></label>
+                  <input type="date" formControlName="startDate" class="form-input">
+                </div>
+
+                <div class="form-group">
+                  <label>Do</label>
+                  <input type="date" formControlName="endDate" class="form-input">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Opis</label>
+                <textarea formControlName="description" class="form-textarea" rows="3" placeholder="Opisz swoje obowiązki i osiągnięcia..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="experiences.length === 0" class="empty-state">
+            <i class="pi pi-briefcase empty-icon"></i>
+            <p>Brak dodanych doświadczeń</p>
+            <span class="hint">Ten krok jest opcjonalny - możesz go pominąć</span>
+            <button type="button" class="primary-btn" (click)="addExperience()">
+              <i class="pi pi-plus"></i> Dodaj doświadczenie
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section" *ngIf="currentStep === 2">
+        <div class="section-title">
+          <i class="pi pi-book"></i>
+          <h2>Edukacja</h2>
+          <button type="button" class="add-btn" (click)="addEducation()">
+            <i class="pi pi-plus"></i> Dodaj
+          </button>
+        </div>
+
+        <div formArrayName="educations">
+          <div *ngFor="let edu of educations.controls; let i = index" class="dynamic-card">
+            <div [formGroupName]="i">
+              <div class="card-header">
+                <span class="card-number">{{ i + 1 }}</span>
+                <button type="button" class="remove-btn" (click)="removeEducation(i)">
+                  <i class="pi pi-trash"></i> Usuń
+                </button>
+              </div>
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Kierunek/Tytuł <span class="required">*</span></label>
+                  <input type="text" formControlName="degree" class="form-input" placeholder="Informatyka">
+                </div>
+
+                <div class="form-group">
+                  <label>Uczelnia <span class="required">*</span></label>
+                  <input type="text" formControlName="institution" class="form-input" placeholder="Politechnika Warszawska">
+                </div>
+              </div>
+
+              <div class="form-grid grid-3">
+                <div class="form-group">
+                  <label>Lokalizacja</label>
+                  <input type="text" formControlName="location" class="form-input" placeholder="Warszawa">
+                </div>
+
+                <div class="form-group">
+                  <label>Od <span class="required">*</span></label>
+                  <input type="date" formControlName="startDate" class="form-input">
+                </div>
+
+                <div class="form-group">
+                  <label>Do</label>
+                  <input type="date" formControlName="endDate" class="form-input">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Opis</label>
+                <textarea formControlName="description" class="form-textarea" rows="3" placeholder="Dodatkowe informacje..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="educations.length === 0" class="empty-state">
+            <i class="pi pi-book empty-icon"></i>
+            <p>Brak dodanej edukacji</p>
+            <span class="hint">Ten krok jest opcjonalny - możesz go pominąć</span>
+            <button type="button" class="primary-btn" (click)="addEducation()">
+              <i class="pi pi-plus"></i> Dodaj edukację
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section" *ngIf="currentStep === 3">
+        <div class="section-title">
+          <i class="pi pi-cog"></i>
+          <h2>Umiejętności</h2>
+          <button type="button" class="add-btn" (click)="addSkill()">
+            <i class="pi pi-plus"></i> Dodaj
+          </button>
+        </div>
+
+        <div formArrayName="skills" class="skills-container">
+          <div *ngFor="let skill of skills.controls; let i = index" class="skill-chip">
+            <div [formGroupName]="i">
+              <input type="text" formControlName="name" class="skill-input" placeholder="np. JavaScript">
+              <button type="button" class="chip-remove" (click)="removeSkill(i)">
+                <i class="pi pi-times"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="skills.length === 0" class="empty-state">
+          <i class="pi pi-cog empty-icon"></i>
+          <p>Brak dodanych umiejętności</p>
+          <span class="hint">Ten krok jest opcjonalny - możesz go pominąć</span>
+          <button type="button" class="primary-btn" (click)="addSkill()">
+            <i class="pi pi-plus"></i> Dodaj umiejętność
+          </button>
+        </div>
+      </div>
+
+      <div class="form-section" *ngIf="currentStep === 4">
+        <div class="section-title">
+          <i class="pi pi-globe"></i>
+          <h2>Języki</h2>
+          <button type="button" class="add-btn" (click)="addLanguage()">
+            <i class="pi pi-plus"></i> Dodaj
+          </button>
+        </div>
+
+        <div formArrayName="languages">
+          <div *ngFor="let lang of languages.controls; let i = index" class="dynamic-card compact">
+            <div [formGroupName]="i">
+              <div class="form-grid grid-3">
+                <div class="form-group">
+                  <label>Język <span class="required">*</span></label>
+                  <input type="text" formControlName="name" class="form-input" placeholder="Angielski">
+                </div>
+
+                <div class="form-group">
+                  <label>Poziom <span class="required">*</span></label>
+                  <select formControlName="level" class="form-input">
+                    <option *ngFor="let level of languageLevels" [value]="level">
+                      {{ level }}
+                    </option>
+                  </select>
+                </div>
+
+                <div class="form-group flex-end">
+                  <button type="button" class="remove-btn" (click)="removeLanguage(i)">
+                    <i class="pi pi-trash"></i> Usuń
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="languages.length === 0" class="empty-state">
+            <i class="pi pi-globe empty-icon"></i>
+            <p>Brak dodanych języków</p>
+            <span class="hint">Ten krok jest opcjonalny - możesz go pominąć</span>
+            <button type="button" class="primary-btn" (click)="addLanguage()">
+              <i class="pi pi-plus"></i> Dodaj język
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-section" *ngIf="currentStep === 5">
+        <div class="section-title">
+          <i class="pi pi-check-circle"></i>
+          <h2>Podsumowanie CV</h2>
+        </div>
+
+        <p class="summary-intro">Sprawdź swoje dane przed zapisaniem. Kliknij "Edytuj" aby wrócić do danej sekcji.</p>
+
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="summary-card-header">
+              <h3><i class="pi pi-user"></i> Dane osobowe</h3>
+              <button type="button" class="edit-section-btn" (click)="goToStep(0)">
+                <i class="pi pi-pencil"></i> Edytuj
+              </button>
+            </div>
+            <div class="summary-card-content">
+              <p class="summary-name">{{ cvForm.get('firstName')?.value }} {{ cvForm.get('lastName')?.value }}</p>
+              <p *ngIf="cvForm.get('email')?.value"><i class="pi pi-envelope"></i> {{ cvForm.get('email')?.value }}</p>
+              <p *ngIf="cvForm.get('phone')?.value"><i class="pi pi-phone"></i> {{ cvForm.get('phone')?.value }}</p>
+              <p *ngIf="cvForm.get('address')?.value"><i class="pi pi-map-marker"></i> {{ cvForm.get('address')?.value }}</p>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <div class="summary-card-header">
+              <h3><i class="pi pi-briefcase"></i> Doświadczenie</h3>
+              <button type="button" class="edit-section-btn" (click)="goToStep(1)">
+                <i class="pi pi-pencil"></i> Edytuj
+              </button>
+            </div>
+            <div class="summary-card-content">
+              <div class="summary-count">
+                <span class="count-number">{{ experiences.length }}</span>
+                <span class="count-label">{{ experiences.length === 1 ? 'pozycja' : 'pozycji' }}</span>
+              </div>
+              <ul *ngIf="experiences.length > 0" class="summary-list">
+                <li *ngFor="let exp of experiences.controls">
+                  {{ exp.get('position')?.value }} &#64; {{ exp.get('company')?.value }}
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <div class="summary-card-header">
+              <h3><i class="pi pi-book"></i> Edukacja</h3>
+              <button type="button" class="edit-section-btn" (click)="goToStep(2)">
+                <i class="pi pi-pencil"></i> Edytuj
+              </button>
+            </div>
+            <div class="summary-card-content">
+              <div class="summary-count">
+                <span class="count-number">{{ educations.length }}</span>
+                <span class="count-label">{{ educations.length === 1 ? 'pozycja' : 'pozycji' }}</span>
+              </div>
+              <ul *ngIf="educations.length > 0" class="summary-list">
+                <li *ngFor="let edu of educations.controls">
+                  {{ edu.get('degree')?.value }} - {{ edu.get('institution')?.value }}
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <div class="summary-card-header">
+              <h3><i class="pi pi-cog"></i> Umiejętności</h3>
+              <button type="button" class="edit-section-btn" (click)="goToStep(3)">
+                <i class="pi pi-pencil"></i> Edytuj
+              </button>
+            </div>
+            <div class="summary-card-content">
+              <div class="summary-count">
+                <span class="count-number">{{ skills.length }}</span>
+                <span class="count-label">{{ skills.length === 1 ? 'umiejętność' : 'umiejętności' }}</span>
+              </div>
+              <div *ngIf="skills.length > 0" class="summary-tags">
+                <span *ngFor="let skill of skills.controls" class="summary-tag">
+                  {{ skill.get('name')?.value }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-card">
+            <div class="summary-card-header">
+              <h3><i class="pi pi-globe"></i> Języki</h3>
+              <button type="button" class="edit-section-btn" (click)="goToStep(4)">
+                <i class="pi pi-pencil"></i> Edytuj
+              </button>
+            </div>
+            <div class="summary-card-content">
+              <div class="summary-count">
+                <span class="count-number">{{ languages.length }}</span>
+                <span class="count-label">{{ languages.length === 1 ? 'język' : 'języków' }}</span>
+              </div>
+              <ul *ngIf="languages.length > 0" class="summary-list">
+                <li *ngFor="let lang of languages.controls">
+                  {{ lang.get('name')?.value }} ({{ lang.get('level')?.value }})
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wizard-navigation">
+        <button
+          type="button"
+          class="nav-btn secondary-btn"
+          (click)="previousStep()"
+          [disabled]="isFirstStep()">
+          <i class="pi pi-arrow-left"></i>
+          <span>Wstecz</span>
+        </button>
+
+        <div class="step-dots">
+          <span
+            *ngFor="let section of sections; let i = index"
+            class="dot"
+            [class.active]="currentStep === i"
+            [class.completed]="currentStep > i"
+            (click)="goToStep(i)">
+          </span>
+        </div>
+
+        <button
+          *ngIf="!isLastStep()"
+          type="button"
+          class="nav-btn primary-btn"
+          (click)="nextStep()"
+          [disabled]="!canProceed()">
+          <span>Dalej</span>
+          <i class="pi pi-arrow-right"></i>
+        </button>
+
+        <button
+          *ngIf="isLastStep()"
+          type="submit"
+          class="nav-btn success-btn"
+          [disabled]="cvForm.invalid || isSaving">
+          <i class="pi pi-spinner pi-spin" *ngIf="isSaving"></i>
+          <i class="pi pi-check" *ngIf="!isSaving"></i>
+          <span>{{ isEditMode ? 'Zapisz zmiany' : 'Utwórz CV' }}</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
